@@ -1,4 +1,5 @@
 const { Member, Role, Workplace } = require('../models');
+const { generateMemberData } = require('../utils/generateDummyData');
 
 describe('Member Database Operations', () => {
   let testMemberId;
@@ -47,19 +48,12 @@ describe('Member Database Operations', () => {
 
   describe('Member Creation', () => {
     test('should create a new member successfully', async () => {
-      const memberData = {
-        name: 'Test Member',
-        email: 'test@example.com',
-        uo_id: '951234999',
+      const memberData = generateMemberData({
         workplace_id: testWorkplaceId,
         role_id: testRoleId,
         dues_status: 'paid',
-        membership_status: 'active',
-        major: 'Computer Science',
-        phone: '555-0123',
-        pronouns: 'they/them',
-        graduation_year: 2025
-      };
+        membership_status: 'active'
+      }, true);
 
       const member = await Member.create(memberData);
       testMemberId = member.id;
@@ -75,25 +69,25 @@ describe('Member Database Operations', () => {
     });
 
     test('should fail to create member with duplicate email', async () => {
-      const memberData = {
-        name: 'Duplicate Email Member',
-        email: 'test@example.com', // Same email as above
-        uo_id: '951234998',
+      // Get the email from the first member
+      const firstMember = await Member.findById(testMemberId);
+      const memberData = generateMemberData({
+        email: firstMember.email, // Same email as above
         workplace_id: testWorkplaceId,
         role_id: testRoleId
-      };
+      }, true);
 
       await expect(Member.create(memberData)).rejects.toThrow();
     });
 
     test('should fail to create member with duplicate UO ID', async () => {
-      const memberData = {
-        name: 'Duplicate UO ID Member',
-        email: 'duplicate@example.com',
-        uo_id: '951234999', // Same UO ID as above
+      // Get the UO ID from the first member
+      const firstMember = await Member.findById(testMemberId);
+      const memberData = generateMemberData({
+        uo_id: firstMember.uo_id, // Same UO ID as above
         workplace_id: testWorkplaceId,
         role_id: testRoleId
-      };
+      }, true);
 
       await expect(Member.create(memberData)).rejects.toThrow();
     });
@@ -105,25 +99,26 @@ describe('Member Database Operations', () => {
 
       expect(member).toBeDefined();
       expect(member.id).toBe(testMemberId);
-      expect(member.name).toBe('Test Member');
       expect(member.role_name).toBe('Test Role');
       expect(member.workplace_name).toBe('Test Workplace');
     });
 
     test('should find member by email', async () => {
-      const member = await Member.findByEmail('test@example.com');
+      const firstMember = await Member.findById(testMemberId);
+      const member = await Member.findByEmail(firstMember.email);
 
       expect(member).toBeDefined();
-      expect(member.email).toBe('test@example.com');
-      expect(member.name).toBe('Test Member');
+      expect(member.email).toBe(firstMember.email);
+      expect(member.id).toBe(testMemberId);
     });
 
     test('should find member by UO ID', async () => {
-      const member = await Member.findByUOId('951234999');
+      const firstMember = await Member.findById(testMemberId);
+      const member = await Member.findByUOId(firstMember.uo_id);
 
       expect(member).toBeDefined();
-      expect(member.uo_id).toBe('951234999');
-      expect(member.name).toBe('Test Member');
+      expect(member.uo_id).toBe(firstMember.uo_id);
+      expect(member.id).toBe(testMemberId);
     });
 
     test('should return null for non-existent member', async () => {
@@ -158,28 +153,34 @@ describe('Member Database Operations', () => {
     });
 
     test('should search members by name', async () => {
-      const members = await Member.findAll({ search: 'Test' });
+      const firstMember = await Member.findById(testMemberId);
+      const nameParts = firstMember.name.split(' ');
+      const searchTerm = nameParts[0]; // Search by first name
+      const members = await Member.findAll({ search: searchTerm });
 
       expect(members).toBeDefined();
       expect(members.length).toBeGreaterThan(0);
-      expect(members[0].name).toContain('Test');
+      expect(members.some(m => m.id === testMemberId)).toBe(true);
     });
   });
 
   describe('Member Updates', () => {
     test('should update member information', async () => {
-      const updateData = {
+      const updateData = generateMemberData({
         name: 'Updated Test Member',
-        major: 'Updated Major',
-        phone: '555-9999'
-      };
+        major: 'Updated Major'
+      }, true);
 
-      const updatedMember = await Member.update(testMemberId, updateData);
+      const updatedMember = await Member.update(testMemberId, {
+        name: updateData.name,
+        major: updateData.major,
+        phone: updateData.phone
+      });
 
       expect(updatedMember).toBeDefined();
       expect(updatedMember.name).toBe('Updated Test Member');
       expect(updatedMember.major).toBe('Updated Major');
-      expect(updatedMember.phone).toBe('555-9999');
+      expect(updatedMember.phone).toBe(updateData.phone);
     });
 
     test('should fail to update with invalid workplace ID', async () => {

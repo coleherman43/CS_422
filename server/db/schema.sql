@@ -69,6 +69,16 @@ CREATE TABLE admins (
     UNIQUE(member_id) -- One admin record per member
 );
 
+-- Login tokens table (for magic link authentication)
+CREATE TABLE login_tokens (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL,
+    token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    used BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better performance
 CREATE INDEX idx_members_email ON members(email);
 CREATE INDEX idx_members_uo_id ON members(uo_id);
@@ -79,6 +89,9 @@ CREATE INDEX idx_events_date ON events(event_date);
 CREATE INDEX idx_attendance_member ON attendance(member_id);
 CREATE INDEX idx_attendance_event ON attendance(event_id);
 CREATE INDEX idx_admins_member ON admins(member_id);
+CREATE INDEX idx_login_tokens_token ON login_tokens(token);
+CREATE INDEX idx_login_tokens_email ON login_tokens(email);
+CREATE INDEX idx_login_tokens_expires ON login_tokens(expires_at);
 
 -- Create updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

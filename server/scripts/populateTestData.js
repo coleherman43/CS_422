@@ -1,7 +1,11 @@
 /**
  * Script to populate test database with dummy member data
  * 
- * Usage: node server/scripts/populateTestData.js [count]
+ * Usage: node server/scripts/populateTestData.js [count] [--keep-existing]
+ * 
+ * Examples:
+ *   node server/scripts/populateTestData.js 20          # Create 20 members, clean existing first
+ *   node server/scripts/populateTestData.js 20 --keep-existing  # Create 20 members, keep existing
  * 
  * This script safely creates test members in the database.
  * All test members use @test.uoregon.edu email domain for easy identification.
@@ -13,7 +17,7 @@ require('dotenv').config();
 const { createTestMember, cleanupTestMembers } = require('../utils/generateDummyData');
 const { Role, Workplace } = require('../models');
 
-async function populateTestData(count = 10) {
+async function populateTestData(count = 10, keepExisting = false) {
   // Check environment
   const env = process.env.NODE_ENV || 'development';
   if (env === 'production') {
@@ -23,13 +27,20 @@ async function populateTestData(count = 10) {
 
   console.log(`\n🧪 Populating test database with ${count} members...`);
   console.log(`   Environment: ${env}`);
-  console.log(`   All test members will use @test.uoregon.edu email domain\n`);
+  console.log(`   All test members will use @test.uoregon.edu email domain`);
+  if (keepExisting) {
+    console.log(`   Keeping existing test members\n`);
+  } else {
+    console.log(`   Cleaning existing test members first\n`);
+  }
 
   try {
-    // Clean up any existing test data first
-    const deleted = await cleanupTestMembers();
-    if (deleted > 0) {
-      console.log(`   Cleaned up ${deleted} existing test members\n`);
+    // Clean up any existing test data first (unless --keep-existing flag is set)
+    if (!keepExisting) {
+      const deleted = await cleanupTestMembers();
+      if (deleted > 0) {
+        console.log(`   Cleaned up ${deleted} existing test members\n`);
+      }
     }
 
     // Get available roles and workplaces for realistic data
@@ -66,11 +77,13 @@ async function populateTestData(count = 10) {
   }
 }
 
-// Get count from command line argument
-const count = parseInt(process.argv[2]) || 10;
+// Get count and flags from command line arguments
+const args = process.argv.slice(2);
+const count = parseInt(args[0]) || 10;
+const keepExisting = args.includes('--keep-existing') || args.includes('-k');
 
 // Run the script
-populateTestData(count)
+populateTestData(count, keepExisting)
   .then(() => {
     process.exit(0);
   })

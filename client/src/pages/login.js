@@ -6,18 +6,34 @@ function Login({ setIsLoggedIn }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
 
-  function handleLogin(e) {
+  async function handleLogin(e) {
     e.preventDefault();
 
     if (!email) {
-      alert("Please enter your email or ID.");
+      alert("Please enter your email.");
       return;
     }
 
-    // Temporary mock login logic
-    localStorage.setItem("loggedIn", "true");
-    setIsLoggedIn(true);
-    navigate("/dashboard");
+    // Store email for verification
+    window.localStorage.setItem("emailForSignIn", email);
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/request-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert("Check your email for a login link!");
+      } else {
+        alert(data.message || "Failed to send login link.");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert("An error occurred. Please try again.");
+    }
   }
 
   return (

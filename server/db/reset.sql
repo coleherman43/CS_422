@@ -2,6 +2,7 @@
 -- This handles foreign key constraints by dropping dependent tables first
 
 -- Drop tables in reverse order of creation
+DROP TABLE IF EXISTS login_tokens CASCADE;
 DROP TABLE IF EXISTS attendance CASCADE;
 DROP TABLE IF EXISTS admins CASCADE;
 DROP TABLE IF EXISTS events CASCADE;

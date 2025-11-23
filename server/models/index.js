@@ -6,6 +6,7 @@ const Event = require('./event');
 const Attendance = require('./attendance');
 const Role = require('./role');
 const Workplace = require('./workplace');
+const LoginToken = require('./loginToken');
 
 // Export all models and db instance
 module.exports = {
@@ -14,6 +15,7 @@ module.exports = {
   Attendance,
   Role,
   Workplace,
+  LoginToken,
   query, // Direct database access for complex queries
 };
 

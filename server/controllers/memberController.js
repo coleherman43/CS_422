@@ -1,4 +1,5 @@
 const { Member, Role, Workplace } = require('../models');
+const EmailService = require('../utils/emailService');
 
 class MemberController {
   // Register new member
@@ -47,6 +48,14 @@ class MemberController {
 
       // Create new member
       const newMember = await Member.create(memberData);
+
+      // Send confirmation email (non-blocking - don't fail registration if email fails)
+      try {
+        await EmailService.sendMemberConfirmation(newMember);
+      } catch (emailError) {
+        console.error('Failed to send member confirmation email:', emailError);
+        // Continue even if email fails
+      }
 
       res.status(201).json({
         success: true,

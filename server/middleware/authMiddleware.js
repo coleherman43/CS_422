@@ -1,27 +1,59 @@
 const { Member } = require('../models');
+const admin = require('../config/firebase');
 
 class AuthMiddleware {
-  // Verify user is logged in (placeholder for future implementation)
+  // Verify user is logged in using Firebase ID token
   static async authenticate(req, res, next) {
     try {
-      // TODO: Implement actual authentication when email auth is added
-      // For now, just pass through
+      // Get token from Authorization header
+      const authHeader = req.header('Authorization');
+      if (!authHeader) {
+        return res.status(401).json({
+          success: false,
+          message: 'Access denied. No token provided.'
+        });
+      }
+
+      // Extract token (format: "Bearer <token>")
+      const idToken = authHeader.replace('Bearer ', '');
+      if (!idToken) {
+        return res.status(401).json({
+          success: false,
+          message: 'Access denied. No token provided.'
+        });
+      }
+
+      // Verify Firebase ID token
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
       
-      // Example of what this would look like with JWT:
-      // const token = req.header('Authorization')?.replace('Bearer ', '');
-      // if (!token) {
-      //   return res.status(401).json({ success: false, message: 'Access denied. No token provided.' });
-      // }
-      // const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      // req.user = decoded;
-      
-      req.user = { id: 1 }; // Placeholder user for development
+      // Get member by email to attach full member info
+      const member = await Member.findByEmail(decodedToken.email);
+      if (!member) {
+        return res.status(401).json({
+          success: false,
+          message: 'Member not found'
+        });
+      }
+
+      // Attach user info to request
+      req.user = {
+        id: member.id,
+        email: member.email,
+        name: member.name
+      };
+
       next();
     } catch (error) {
       console.error('Authentication error:', error);
+      if (error.code === 'auth/id-token-expired' || error.code === 'auth/argument-error') {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid or expired token'
+        });
+      }
       res.status(401).json({
         success: false,
-        message: 'Invalid token'
+        message: 'Authentication failed'
       });
     }
   }

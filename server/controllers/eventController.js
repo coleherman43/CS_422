@@ -1,4 +1,5 @@
 const { Event, Attendance, Member } = require('../models');
+const EmailService = require('../utils/emailService');
 
 class EventController {
   // Create new event
@@ -200,6 +201,14 @@ class EventController {
       // TODO: Validate QR code token when QR implementation is added
       // For now, just record the check-in
       const checkIn = await Attendance.recordCheckIn(member_id, eventId, qr_code_token);
+
+      // Send check-in confirmation email (non-blocking - don't fail check-in if email fails)
+      try {
+        await EmailService.sendCheckInConfirmation(member, event);
+      } catch (emailError) {
+        console.error('Failed to send check-in confirmation email:', emailError);
+        // Continue even if email fails
+      }
 
       res.status(201).json({
         success: true,

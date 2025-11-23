@@ -8,3 +8,4 @@ router.get('/', WorkplaceController.getWorkplaces);
 module.exports = router;
 
 
+

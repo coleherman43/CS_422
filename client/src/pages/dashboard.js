@@ -4,20 +4,14 @@ import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import CreateEvent from "./createEvent";
 import ViewEvent from "./viewEvent";
-
+import StaggeredMenu from "../components/StaggeredMenu";
 import Member from "./member";
 import Events from "./events";
 import Reports from "./reports";
 import UOSWLogo from "../Images/UOSW_Logo.png";
 
-
-
-<Route path="events" element={<Events />} />
-
-
 function Dashboard({ setIsLoggedIn }) {
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true); // keep sidebar open by default
 
   function handleLogout() {
     localStorage.removeItem("loggedIn");
@@ -25,32 +19,53 @@ function Dashboard({ setIsLoggedIn }) {
     navigate("/login");
   }
 
+  const menuItems = [
+    { label: 'Overview', ariaLabel: 'Go to dashboard overview', link: '/dashboard' },
+    { label: 'Members', ariaLabel: 'View members', link: '/dashboard/members' },
+    { label: 'Events', ariaLabel: 'View events', link: '/dashboard/events' },
+    { label: 'Reports', ariaLabel: 'View reports', link: '/dashboard/reports' },
+    { label: 'Log Out', ariaLabel: 'Log out of account', link: '#', onClick: handleLogout }
+  ];
+
+  const handleMenuClose = () => {
+    // Optional: handle menu close if needed
+  };
+
   return (
     <div className="dashboard-container">
-      {/* Sidebar */}
-      <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">
-          <h2>Flock Manager</h2>
-          <button className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
-            {sidebarOpen ? "✖" : "☰"}
-          </button>
-        </div>
-
-        <nav className="sidebar-nav">
-          <Link to="/dashboard" className="nav-link">Overview</Link>
-          <Link to="/dashboard/members" className="nav-link">Members</Link>
-          <Link to="/dashboard/events" className="nav-link">Events</Link>
-          <Link to="/dashboard/reports" className="nav-link">Reports</Link>
-          <button className="btn logout-btn" onClick={handleLogout}>Log Out</button>
-        </nav>
-      </aside>
+      {/* Staggered Menu */}
+      <StaggeredMenu
+        position="left"
+        items={menuItems.map(item => {
+          if (item.onClick) {
+            return {
+              ...item,
+              link: '#',
+              onClick: item.onClick
+            };
+          }
+          return item;
+        })}
+        displaySocials={false}
+        displayItemNumbering={false}
+        menuButtonColor="#B8241C"
+        openMenuButtonColor="#fff"
+        changeMenuColorOnOpen={true}
+        colors={['#B8241C', '#e7615a']}
+        logoUrl={UOSWLogo}
+        accentColor="#B8241C"
+        onMenuOpen={() => console.log('Menu opened')}
+        onMenuClose={handleMenuClose}
+      />
 
       {/* Main Content */}
       <main className="main-content">
         {/* Top Bar With Logo */}
-  <div className="dashboard-topbar">
-    <img src={UOSWLogo} alt="Union Logo" className="dashboard-logo-top" />
-  </div>
+        <div className="dashboard-topbar">
+          <Link to="/dashboard" style={{ cursor: "pointer" }}>
+            <img src={UOSWLogo} alt="Union Logo" className="dashboard-logo-top" />
+          </Link>
+        </div>
       <Routes>
       <Route
         index

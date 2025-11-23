@@ -123,8 +123,8 @@ body {
   flex: 1;
   margin-left: 0;
   padding: 2rem;
-  background-color: #E8E6E6; /* keep green */
-  transition: margin-left 0.3s ease-in-out;
+  background-color: #E8E6E6;
+  min-height: 100vh;
 
   /* Center content vertically and horizontally */
   display: flex;
@@ -132,10 +132,6 @@ body {
   align-items: center;
   justify-content: flex-start;
   gap: 2rem;
-}
-
-.sidebar.open ~ .main-content {
-  margin-left: 250px; /* push content when sidebar open on large screens */
 }
 
 /* ---------- Menu toggle button ---------- */

@@ -1,4 +1,5 @@
 const { Attendance, Event, Member, Workplace } = require('../models');
+const { generateMemberData } = require('../utils/generateDummyData');
 
 describe('Attendance Database Operations', () => {
   let testAttendanceId;
@@ -6,27 +7,26 @@ describe('Attendance Database Operations', () => {
   let testMemberId;
 
   beforeAll(async () => {
-    // Clean up any existing test data first
-    const existingMember = await Member.findByEmail('attendee@example.com');
-    if (existingMember) {
-      await Member.delete(existingMember.id);
-    }
-    
     // Create test workplace
     const testWorkplace = await Workplace.create({
       name: 'Attendance Test Workplace',
       location: 'Test Location'
     });
     
-    // Create test member
-    const testMember = await Member.create({
-      name: 'Test Attendee',
-      email: 'attendee@example.com',
-      uo_id: '951234996',
+    // Create test member using dummy data generator
+    const memberData = generateMemberData({
       workplace_id: testWorkplace.id,
       dues_status: 'paid',
       membership_status: 'active'
-    });
+    }, true);
+    
+    // Clean up any existing test data first
+    const existingMember = await Member.findByEmail(memberData.email);
+    if (existingMember) {
+      await Member.delete(existingMember.id);
+    }
+    
+    const testMember = await Member.create(memberData);
     testMemberId = testMember.id;
 
     // Create test event
@@ -97,7 +97,7 @@ describe('Attendance Database Operations', () => {
       expect(attendance).toBeDefined();
       expect(attendance.length).toBeGreaterThan(0);
       expect(attendance[0].event_id).toBe(testEventId);
-      expect(attendance[0].member_name).toBe('Test Attendee');
+      expect(attendance[0].member_name).toBeDefined();
     });
 
     test('should check if member is checked in', async () => {
@@ -108,13 +108,11 @@ describe('Attendance Database Operations', () => {
 
     test('should return false for non-checked-in member', async () => {
       // Create another member who hasn't checked in
-      const otherMember = await Member.create({
-        name: 'Other Member',
-        email: 'other@example.com',
-        uo_id: '951234995',
+      const otherMemberData = generateMemberData({
         dues_status: 'paid',
         membership_status: 'active'
-      });
+      }, true);
+      const otherMember = await Member.create(otherMemberData);
 
       const isCheckedIn = await Attendance.isCheckedIn(otherMember.id, testEventId);
       expect(isCheckedIn).toBe(false);

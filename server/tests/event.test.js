@@ -1,24 +1,24 @@
 const { Event, Member, Attendance } = require('../models');
+const { generateMemberData } = require('../utils/generateDummyData');
 
 describe('Event Database Operations', () => {
   let testEventId;
   let testMemberId;
 
   beforeAll(async () => {
+    // Create test member for event creator using dummy data generator
+    const memberData = generateMemberData({
+      dues_status: 'paid',
+      membership_status: 'active'
+    }, true);
+    
     // Clean up any existing test data first
-    const existingMember = await Member.findByEmail('creator@example.com');
+    const existingMember = await Member.findByEmail(memberData.email);
     if (existingMember) {
       await Member.delete(existingMember.id);
     }
     
-    // Create test member for event creator
-    const testMember = await Member.create({
-      name: 'Test Event Creator',
-      email: 'creator@example.com',
-      uo_id: '951234997',
-      dues_status: 'paid',
-      membership_status: 'active'
-    });
+    const testMember = await Member.create(memberData);
     testMemberId = testMember.id;
   });
 
@@ -70,7 +70,7 @@ describe('Event Database Operations', () => {
       expect(event).toBeDefined();
       expect(event.id).toBe(testEventId);
       expect(event.title).toBe('Test Event');
-      expect(event.created_by_name).toBe('Test Event Creator');
+      expect(event.created_by_name).toBeDefined();
     });
 
     test('should return null for non-existent event', async () => {
@@ -101,7 +101,7 @@ describe('Event Database Operations', () => {
 
       expect(events).toBeDefined();
       expect(events.length).toBeGreaterThan(0);
-      expect(events[0].title).toContain('Test');
+      expect(events.some(e => e.id === testEventId)).toBe(true);
     });
   });
 

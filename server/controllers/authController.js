@@ -16,33 +16,74 @@ class AuthController {
       }
 
       // Check if member exists
-      const member = await Member.findByEmail(email);
+      let member;
+      try {
+        member = await Member.findByEmail(email);
+      } catch (dbError) {
+        if (dbError.message?.includes('DATABASE_URL') || dbError.code === 'ECONNREFUSED') {
+          console.error('❌ Database not configured or not running');
+          return res.status(503).json({
+            success: false,
+            message: 'Database is not configured. Please set DATABASE_URL in your .env file.'
+          });
+        }
+        throw dbError;
+      }
+
       if (!member) {
-        // Don't reveal that email doesn't exist (security best practice)
-        // Still return success to prevent email enumeration
         return res.json({
           success: true,
           message: 'If an account exists with this email, a login link has been sent.'
         });
       }
 
-      // Generate Firebase email link
       const baseUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
       const actionCodeSettings = {
         url: `${baseUrl}/verify`,
-        handleCodeInApp: false, // Set to true if using mobile app
+        handleCodeInApp: false,
       };
 
-      // Generate the sign-in link using Firebase
-      const magicLink = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+      let magicLink;
+      try {
+        const isFirebaseInitialized = admin.isInitialized && admin.isInitialized();
 
-      // Send magic link email (non-blocking - log error but don't fail request)
+        if (!isFirebaseInitialized && process.env.NODE_ENV !== 'production') {
+          const crypto = require('crypto');
+          const devToken = crypto.randomBytes(32).toString('hex');
+          const expiresAt = Date.now() + 15 * 60 * 1000;
+
+          if (!global.devTokens) global.devTokens = new Map();
+          global.devTokens.set(devToken, { email, memberId: member.id, expiresAt });
+
+          magicLink = `${baseUrl}/verify?token=${devToken}&email=${encodeURIComponent(email)}`;
+          console.log(`🔗 Development magic link generated: ${magicLink}`);
+        } else if (isFirebaseInitialized) {
+          magicLink = await admin.auth().generateSignInWithEmailLink(email, actionCodeSettings);
+          console.log(`✅ Magic link generated: ${magicLink.substring(0, 50)}...`);
+        } else {
+          throw new Error('Firebase is required in production mode but is not initialized');
+        }
+      } catch (firebaseError) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`⚠️  Firebase error - using development mode:`, firebaseError.message);
+          const crypto = require('crypto');
+          const devToken = crypto.randomBytes(32).toString('hex');
+          const expiresAt = Date.now() + 15 * 60 * 1000;
+
+          if (!global.devTokens) global.devTokens = new Map();
+          global.devTokens.set(devToken, { email, memberId: member.id, expiresAt });
+
+          magicLink = `${baseUrl}/verify?token=${devToken}&email=${encodeURIComponent(email)}`;
+          console.log(`🔗 Development magic link generated: ${magicLink}`);
+        } else {
+          throw firebaseError;
+        }
+      }
+
       try {
         await EmailService.sendMagicLinkEmail(email, member.name, magicLink);
       } catch (emailError) {
         console.error('Failed to send magic link email:', emailError);
-        // Continue even if email fails - link is still generated and valid
-        // User can request another link if needed
       }
 
       res.json({
@@ -51,9 +92,18 @@ class AuthController {
       });
     } catch (error) {
       console.error('Request login error:', error);
+      console.error('Error stack:', error.stack);
+
+      if (error.code === 'ECONNREFUSED' || error.message?.includes('connect')) {
+        return res.status(503).json({
+          success: false,
+          message: 'Database connection failed. Please check your database configuration.'
+        });
+      }
+
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
       });
     }
   }
@@ -70,7 +120,6 @@ class AuthController {
         });
       }
 
-      // Verify the Firebase ID token
       const decodedToken = await admin.auth().verifyIdToken(idToken);
       const email = decodedToken.email;
 
@@ -81,7 +130,6 @@ class AuthController {
         });
       }
 
-      // Get member by email
       const member = await Member.findByEmail(email);
       if (!member) {
         return res.status(401).json({
@@ -90,8 +138,6 @@ class AuthController {
         });
       }
 
-      // Return the Firebase ID token as the session token
-      // Frontend can use this token for subsequent requests
       res.json({
         success: true,
         message: 'Login successful',
@@ -121,18 +167,14 @@ class AuthController {
     }
   }
 
-  // Legacy login endpoint (kept for backward compatibility, but now redirects to requestLogin)
+  // Legacy login endpoint
   static async login(req, res) {
-    // Redirect to requestLogin for email-based auth
     return this.requestLogin(req, res);
   }
 
   // Logout
   static async logout(req, res) {
     try {
-      // Session tokens are stateless (no server-side storage)
-      // Client should remove the token from storage
-      // For additional security, you could implement a token blacklist here if needed
       res.json({
         success: true,
         message: 'Logout successful'
@@ -149,7 +191,6 @@ class AuthController {
   // Get current user info
   static async getCurrentUser(req, res) {
     try {
-      // User should be attached by authMiddleware
       if (!req.user) {
         return res.status(401).json({
           success: false,
@@ -186,12 +227,11 @@ class AuthController {
     }
   }
 
-  // Register new member (if needed for self-registration)
+  // Register new member
   static async register(req, res) {
     try {
       const memberData = req.body;
 
-      // Check if member already exists
       const existingMember = await Member.findByEmail(memberData.email);
       if (existingMember) {
         return res.status(409).json({
@@ -200,7 +240,6 @@ class AuthController {
         });
       }
 
-      // Check if UO ID already exists
       const existingUOId = await Member.findByUOId(memberData.uo_id);
       if (existingUOId) {
         return res.status(409).json({
@@ -209,7 +248,6 @@ class AuthController {
         });
       }
 
-      // Create new member
       const newMember = await Member.create(memberData);
 
       res.status(201).json({
@@ -228,4 +266,3 @@ class AuthController {
 }
 
 module.exports = AuthController;
-

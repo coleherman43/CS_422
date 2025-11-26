@@ -23,15 +23,42 @@ function Verify({ setIsLoggedIn }) {
 
   useEffect(() => {
     async function verifyEmailLink() {
-      if (!auth) {
-        setStatus("Firebase not configured.");
-        setTimeout(() => navigate("/login"), 2000);
-        return;
-      }
-
       try {
         const email = window.localStorage.getItem("emailForSignIn") || searchParams.get("email");
-        
+        const token = searchParams.get("token");
+
+        // Check for development token (when Firebase is not configured)
+        if (token && email) {
+          console.log("Using development token authentication");
+          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token, email }),
+          });
+
+          const data = await response.json();
+          if (data.success && data.data.token) {
+            localStorage.setItem("token", data.data.token);
+            localStorage.setItem("loggedIn", "true");
+            window.localStorage.removeItem("emailForSignIn");
+            setIsLoggedIn(true);
+            setStatus("Login successful! Redirecting...");
+            setTimeout(() => navigate("/dashboard"), 1000);
+            return;
+          } else {
+            setStatus(data.message || "Verification failed.");
+            setTimeout(() => navigate("/login"), 2000);
+            return;
+          }
+        }
+
+        // Firebase authentication (production mode)
+        if (!auth) {
+          setStatus("Firebase not configured. Please use the development login link.");
+          setTimeout(() => navigate("/login"), 3000);
+          return;
+        }
+
         if (isSignInWithEmailLink(auth, window.location.href) && email) {
           const result = await signInWithEmailLink(auth, email, window.location.href);
           const idToken = await result.user.getIdToken();

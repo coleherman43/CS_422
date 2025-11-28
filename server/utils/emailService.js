@@ -15,12 +15,59 @@ class EmailService {
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS
-      }
+      },
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 10000,
+      socketTimeout: 10000
     });
+  }
+
+  // Send email using Resend API (bypasses SMTP blocking)
+  static async sendEmailViaResend(to, subject, text, html = null) {
+    try {
+      const { Resend } = require('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+
+      const fromEmail = process.env.EMAIL_FROM || 'onboarding@resend.dev';
+      // Extract email from "Name <email>" format if needed
+      const from = fromEmail.includes('<') ? fromEmail.match(/<(.+)>/)[1] : fromEmail;
+
+      const { data, error } = await resend.emails.send({
+        from: from,
+        to: to,
+        subject: subject,
+        text: text,
+        html: html || text.replace(/\n/g, '<br>')
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      console.log('📧 Email sent successfully via Resend:', data.id);
+      return { success: true, messageId: data.id, mode: 'resend' };
+    } catch (error) {
+      console.error('Resend API error:', error);
+      throw error;
+    }
   }
 
   // Send email helper method
   static async sendEmail(to, subject, text, html = null) {
+    // Try Resend API first (if configured)
+    if (process.env.RESEND_API_KEY) {
+      console.log('📧 Using Resend API (RESEND_API_KEY detected)');
+      try {
+        return await this.sendEmailViaResend(to, subject, text, html);
+      } catch (error) {
+        console.error('❌ Resend API failed, falling back to SMTP or console:', error.message);
+        console.error('Resend error details:', error);
+        // Fall through to SMTP or console logging
+      }
+    } else {
+      console.log('⚠️  RESEND_API_KEY not found, using SMTP or console fallback');
+    }
+
     const transporter = this.getTransporter();
     
     // If email is not configured, fall back to console logging

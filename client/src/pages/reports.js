@@ -165,6 +165,381 @@ export default function Reports() {
     { id: "dues", label: "Dues" },
   ];
 
+  // Format membership report
+  const renderMembershipReport = (data) => {
+    const { membership, roles, workplaces } = data;
+    return (
+      <div className="report-content">
+        <h2>Membership Statistics</h2>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-value">{membership?.total_members || 0}</div>
+            <div className="stat-label">Total Members</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{membership?.active_members || 0}</div>
+            <div className="stat-label">Active Members</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{membership?.inactive_members || 0}</div>
+            <div className="stat-label">Inactive Members</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{membership?.graduated_members || 0}</div>
+            <div className="stat-label">Graduated</div>
+          </div>
+        </div>
+
+        <h3>Dues Status</h3>
+        <div className="stats-grid">
+          <div className="stat-card stat-paid">
+            <div className="stat-value">{membership?.paid_dues || 0}</div>
+            <div className="stat-label">Paid</div>
+          </div>
+          <div className="stat-card stat-unpaid">
+            <div className="stat-value">{membership?.unpaid_dues || 0}</div>
+            <div className="stat-label">Unpaid</div>
+          </div>
+          <div className="stat-card stat-exempt">
+            <div className="stat-value">{membership?.exempt_dues || 0}</div>
+            <div className="stat-label">Exempt</div>
+          </div>
+        </div>
+
+        {roles && roles.length > 0 && (
+          <>
+            <h3>Roles Distribution</h3>
+            <div className="data-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Role</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {roles.map((role, idx) => (
+                    <tr key={idx}>
+                      <td>{role.name || role.role_name || 'N/A'}</td>
+                      <td>{role.count || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {workplaces && workplaces.length > 0 && (
+          <>
+            <h3>Workplaces Distribution</h3>
+            <div className="data-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Workplace</th>
+                    <th>Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workplaces.map((wp, idx) => (
+                    <tr key={idx}>
+                      <td>{wp.name || wp.workplace_name || 'N/A'}</td>
+                      <td>{wp.count || wp.member_count || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Format attendance report
+  const renderAttendanceReport = (data) => {
+    if (data.member) {
+      // Individual member report
+      return (
+        <div className="report-content">
+          <h2>Member Attendance: {data.member.name}</h2>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{data.attendance_rate?.rate || 0}%</div>
+              <div className="stat-label">Attendance Rate</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{data.statistics?.total_events || 0}</div>
+              <div className="stat-label">Total Events</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{data.statistics?.attended || 0}</div>
+              <div className="stat-label">Attended</div>
+            </div>
+          </div>
+          {data.attendance_history && data.attendance_history.length > 0 && (
+            <>
+              <h3>Attendance History</h3>
+              <div className="data-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.attendance_history.map((att, idx) => (
+                      <tr key={idx}>
+                        <td>{att.event_name || 'N/A'}</td>
+                        <td>{att.event_date ? new Date(att.event_date).toLocaleDateString() : 'N/A'}</td>
+                        <td><span className={`badge ${att.checked_in ? 'badge-success' : 'badge-missing'}`}>
+                          {att.checked_in ? 'Attended' : 'Absent'}
+                        </span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    } else if (data.event) {
+      // Event-specific report
+      return (
+        <div className="report-content">
+          <h2>Event Attendance: {data.event.name}</h2>
+          <div className="event-info">
+            <p><strong>Date:</strong> {data.event.date ? new Date(data.event.date).toLocaleDateString() : 'N/A'}</p>
+            <p><strong>Location:</strong> {data.event.location || 'N/A'}</p>
+          </div>
+          {data.summary && (
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{data.summary.total_attendees || 0}</div>
+                <div className="stat-label">Total Attendees</div>
+              </div>
+            </div>
+          )}
+          {data.attendance && data.attendance.length > 0 && (
+            <>
+              <h3>Attendees</h3>
+              <div className="data-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Member</th>
+                      <th>Check-in Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.attendance.map((att, idx) => (
+                      <tr key={idx}>
+                        <td>{att.member_name || 'N/A'}</td>
+                        <td>{att.check_in_time ? new Date(att.check_in_time).toLocaleString() : 'N/A'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      );
+    } else {
+      // General attendance report
+      return (
+        <div className="report-content">
+          <h2>General Attendance Report</h2>
+          {data.message ? (
+            <div style={{ padding: "20px", color: "#666", fontStyle: "italic", textAlign: "center" }}>
+              <p>{data.message}</p>
+            </div>
+          ) : (
+            <>
+              {data.recent_check_ins && data.recent_check_ins.length > 0 && (
+                <>
+                  <h3>Recent Check-ins</h3>
+                  <div className="data-table">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Member</th>
+                          <th>Event</th>
+                          <th>Check-in Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.recent_check_ins.map((checkin, idx) => (
+                          <tr key={idx}>
+                            <td>{checkin.member_name || 'N/A'}</td>
+                            <td>{checkin.event_name || 'N/A'}</td>
+                            <td>{checkin.check_in_time ? new Date(checkin.check_in_time).toLocaleString() : 'N/A'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+              {data.event_statistics && (
+                <>
+                  <h3>Event Statistics</h3>
+                  <div className="stats-grid">
+                    <div className="stat-card">
+                      <div className="stat-value">{data.event_statistics.total_events || 0}</div>
+                      <div className="stat-label">Total Events</div>
+                    </div>
+                    <div className="stat-card">
+                      <div className="stat-value">{data.event_statistics.total_attendees || 0}</div>
+                      <div className="stat-label">Total Attendees</div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </div>
+      );
+    }
+  };
+
+  // Format workplace report
+  const renderWorkplaceReport = (data) => {
+    const { statistics, workplaces } = data;
+    return (
+      <div className="report-content">
+        <h2>Workplace Statistics</h2>
+        {statistics && (
+          <div className="stats-grid">
+            <div className="stat-card">
+              <div className="stat-value">{statistics.total_workplaces || 0}</div>
+              <div className="stat-label">Total Workplaces</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{statistics.total_members || 0}</div>
+              <div className="stat-label">Total Members</div>
+            </div>
+          </div>
+        )}
+        {workplaces && workplaces.length > 0 && (
+          <>
+            <h3>Workplace Breakdown</h3>
+            <div className="data-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Workplace</th>
+                    <th>Members</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workplaces.map((wp, idx) => (
+                    <tr key={idx}>
+                      <td>{wp.name || wp.workplace_name || 'N/A'}</td>
+                      <td>{wp.member_count || wp.count || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Format dues report
+  const renderDuesReport = (data) => {
+    const { summary, unpaid_members } = data;
+    return (
+      <div className="report-content">
+        <h2>Dues Report</h2>
+        {summary && (
+          <>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <div className="stat-value">{summary.total_members || 0}</div>
+                <div className="stat-label">Total Members</div>
+              </div>
+              <div className="stat-card stat-paid">
+                <div className="stat-value">{summary.paid_dues || 0}</div>
+                <div className="stat-label">Paid</div>
+              </div>
+              <div className="stat-card stat-unpaid">
+                <div className="stat-value">{summary.unpaid_dues || 0}</div>
+                <div className="stat-label">Unpaid</div>
+              </div>
+              <div className="stat-card stat-exempt">
+                <div className="stat-value">{summary.exempt_dues || 0}</div>
+                <div className="stat-label">Exempt</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{summary.payment_rate || 0}%</div>
+                <div className="stat-label">Payment Rate</div>
+              </div>
+            </div>
+          </>
+        )}
+        {unpaid_members && unpaid_members.length > 0 && (
+          <>
+            <h3>Members with Unpaid Dues</h3>
+            <div className="data-table">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Workplace</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {unpaid_members.map((member, idx) => (
+                    <tr key={idx}>
+                      <td>{member.name || 'N/A'}</td>
+                      <td>{member.email || 'N/A'}</td>
+                      <td>{member.workplace_name || 'N/A'}</td>
+                      <td><span className="badge badge-unpaid">Unpaid</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  // Render appropriate report based on type
+  const renderReport = () => {
+    if (!data) return null;
+    if (data.error) {
+      return (
+        <div className="error">
+          <p>Error loading report: {data.error}</p>
+        </div>
+      );
+    }
+
+    switch (activeReport) {
+      case 'membership':
+        return renderMembershipReport(data);
+      case 'attendance':
+        return renderAttendanceReport(data);
+      case 'workplace':
+        return renderWorkplaceReport(data);
+      case 'dues':
+        return renderDuesReport(data);
+      default:
+        return <pre>{JSON.stringify(data, null, 2)}</pre>;
+    }
+  };
+
   // Fetch members data (same as members page)
   useEffect(() => {
     const fetchMembers = async () => {
@@ -188,41 +563,6 @@ export default function Reports() {
     fetchMembers();
   }, []);
 
-  // Generate report data from members when a box is clicked
-  useEffect(() => {
-    if (!activeReport) {
-      setData(null);
-      setError(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    // Try to fetch from API first
-    fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/reports/${activeReport}`)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
-        return res.json();
-      })
-      .then((json) => {
-        if (json.success) {
-          setData(json.data);
-        } else {
-          throw new Error(json.message || "Failed to load report");
-        }
-      })
-      .catch((err) => {
-        console.log("API report failed, generating from member data:", err.message);
-        // Generate report from member data
-        const reportData = generateReportFromMembers(activeReport, members.length > 0 ? members : DUMMY_MEMBERS);
-        setData(reportData);
-      })
-      .finally(() => setLoading(false));
-  }, [activeReport, members]);
-
   // Generate report statistics from member data
   const generateReportFromMembers = (reportType, memberList) => {
     switch (reportType) {
@@ -244,6 +584,9 @@ export default function Reports() {
     const active = memberList.filter(m => m.membership_status === "active").length;
     const inactive = memberList.filter(m => m.membership_status === "inactive").length;
     const graduated = memberList.filter(m => m.membership_status === "graduated").length;
+    const paid = memberList.filter(m => m.dues_status === "paid").length;
+    const unpaid = memberList.filter(m => m.dues_status === "unpaid").length;
+    const exempt = memberList.filter(m => m.dues_status === "exempt").length;
 
     // Count by role
     const roleCounts = {};
@@ -266,7 +609,10 @@ export default function Reports() {
         total_members: total,
         active_members: active,
         inactive_members: inactive,
-        graduated_members: graduated
+        graduated_members: graduated,
+        paid_dues: paid,
+        unpaid_dues: unpaid,
+        exempt_dues: exempt
       },
       roles,
       workplaces
@@ -274,11 +620,11 @@ export default function Reports() {
   };
 
   const generateAttendanceReport = (memberList) => {
-    // For attendance, we'll show basic stats since we don't have event data
     return {
       event_statistics: {
         total_events: 0,
-        avg_attendance: 0
+        avg_attendance: 0,
+        total_attendees: 0
       },
       recent_check_ins: [],
       message: "Attendance data requires event information. Please check the events page."
@@ -318,7 +664,6 @@ export default function Reports() {
         id: m.id,
         name: m.name,
         email: m.email,
-        uo_id: m.uo_id,
         workplace_name: m.workplace_name
       }));
 
@@ -334,307 +679,41 @@ export default function Reports() {
     };
   };
 
-  // Format report data based on type
-  const renderReportData = () => {
-    if (!data) return null;
-
-    switch (activeReport) {
-      case "membership":
-        return renderMembershipReport(data);
-      case "attendance":
-        return renderAttendanceReport(data);
-      case "workplace":
-        return renderWorkplaceReport(data);
-      case "dues":
-        return renderDuesReport(data);
-      default:
-        return null;
+  // Fetch report data when a box is clicked
+  useEffect(() => {
+    if (!activeReport) {
+      setData(null);
+      setError(null);
+      return;
     }
-  };
 
-  const renderMembershipReport = (data) => {
-    return (
-      <div className="report-content">
-        <h2>Membership Statistics</h2>
-        {data.membership && (
-          <div className="report-section">
-            <h3>Overall Statistics</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-label">Total Members</div>
-                <div className="stat-value">{data.membership.total_members || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Active Members</div>
-                <div className="stat-value">{data.membership.active_members || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Inactive Members</div>
-                <div className="stat-value">{data.membership.inactive_members || 0}</div>
-              </div>
-            </div>
-          </div>
-        )}
-        {data.roles && data.roles.length > 0 && (
-          <div className="report-section">
-            <h3>By Role</h3>
-            <div className="table-wrapper">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Role</th>
-                    <th>Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.roles.map((role, idx) => (
-                    <tr key={idx}>
-                      <td>{role.role_name || role.name || "N/A"}</td>
-                      <td>{role.count || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-        {data.workplaces && data.workplaces.length > 0 && (
-          <div className="report-section">
-            <h3>By Workplace</h3>
-            <div className="table-wrapper">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Workplace</th>
-                    <th>Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.workplaces.map((wp, idx) => (
-                    <tr key={idx}>
-                      <td>{wp.workplace_name || wp.name || "N/A"}</td>
-                      <td>{wp.count || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+    setLoading(true);
+    setError(null);
 
-  const renderAttendanceReport = (data) => {
-    return (
-      <div className="report-content">
-        <h2>Attendance Report</h2>
-        {data.message ? (
-          <div className="report-section">
-            <p style={{ color: "#666", fontStyle: "italic" }}>{data.message}</p>
-          </div>
-        ) : (
-          <>
-            {data.member && (
-              <div className="report-section">
-                <h3>Member: {data.member.name}</h3>
-                {data.attendance_rate && (
-                  <div className="stat-card">
-                    <div className="stat-label">Attendance Rate</div>
-                    <div className="stat-value">{data.attendance_rate}%</div>
-                  </div>
-                )}
-              </div>
-            )}
-            {data.event && (
-              <div className="report-section">
-                <h3>Event: {data.event.name}</h3>
-                <p><strong>Date:</strong> {data.event.date ? new Date(data.event.date).toLocaleDateString() : "N/A"}</p>
-                <p><strong>Location:</strong> {data.event.location || "N/A"}</p>
-              </div>
-            )}
-            {data.recent_check_ins && data.recent_check_ins.length > 0 && (
-              <div className="report-section">
-                <h3>Recent Check-Ins</h3>
-                <div className="table-wrapper">
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Member</th>
-                        <th>Event</th>
-                        <th>Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recent_check_ins.map((checkin, idx) => (
-                        <tr key={idx}>
-                          <td>{checkin.member_name || "N/A"}</td>
-                          <td>{checkin.event_name || "N/A"}</td>
-                          <td>{checkin.check_in_date ? new Date(checkin.check_in_date).toLocaleDateString() : "N/A"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            {data.attendance_history && data.attendance_history.length > 0 && (
-              <div className="report-section">
-                <h3>Attendance History</h3>
-                <div className="table-wrapper">
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        <th>Event</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.attendance_history.map((attendance, idx) => (
-                        <tr key={idx}>
-                          <td>{attendance.event_name || "N/A"}</td>
-                          <td>{attendance.event_date ? new Date(attendance.event_date).toLocaleDateString() : "N/A"}</td>
-                          <td>
-                            <span className={`status-badge ${attendance.attended ? "status-active" : "status-inactive"}`}>
-                              {attendance.attended ? "Attended" : "Absent"}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-            {data.event_statistics && (
-              <div className="report-section">
-                <h3>Event Statistics</h3>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-label">Total Events</div>
-                    <div className="stat-value">{data.event_statistics.total_events || 0}</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-label">Average Attendance</div>
-                    <div className="stat-value">{data.event_statistics.avg_attendance || 0}</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-    );
-  };
-
-  const renderWorkplaceReport = (data) => {
-    return (
-      <div className="report-content">
-        <h2>Workplace Report</h2>
-        {data.statistics && (
-          <div className="report-section">
-            <h3>Overall Statistics</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-label">Total Workplaces</div>
-                <div className="stat-value">{data.statistics.total_workplaces || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Total Members</div>
-                <div className="stat-value">{data.statistics.total_members || 0}</div>
-              </div>
-            </div>
-          </div>
-        )}
-        {data.workplaces && data.workplaces.length > 0 && (
-          <div className="report-section">
-            <h3>Workplace Breakdown</h3>
-            <div className="table-wrapper">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Workplace</th>
-                    <th>Member Count</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.workplaces.map((wp, idx) => (
-                    <tr key={idx}>
-                      <td>{wp.workplace_name || wp.name || "N/A"}</td>
-                      <td>{wp.member_count || wp.count || 0}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderDuesReport = (data) => {
-    return (
-      <div className="report-content">
-        <h2>Dues Report</h2>
-        {data.summary && (
-          <div className="report-section">
-            <h3>Summary</h3>
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-label">Total Members</div>
-                <div className="stat-value">{data.summary.total_members || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Paid Dues</div>
-                <div className="stat-value">{data.summary.paid_dues || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Unpaid Dues</div>
-                <div className="stat-value">{data.summary.unpaid_dues || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Exempt</div>
-                <div className="stat-value">{data.summary.exempt_dues || 0}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-label">Payment Rate</div>
-                <div className="stat-value">{data.summary.payment_rate || 0}%</div>
-              </div>
-            </div>
-          </div>
-        )}
-        {data.unpaid_members && data.unpaid_members.length > 0 && (
-          <div className="report-section">
-            <h3>Members with Unpaid Dues</h3>
-            <div className="table-wrapper">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>UO ID</th>
-                    <th>Workplace</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.unpaid_members.map((member, idx) => (
-                    <tr key={member.id || idx}>
-                      <td>{member.name || "N/A"}</td>
-                      <td>{member.email || "N/A"}</td>
-                      <td>{member.uo_id || "N/A"}</td>
-                      <td>{member.workplace_name || "N/A"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
+    // Try to fetch from API first
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    fetch(`${apiUrl}/reports/${activeReport}`)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((json) => {
+        if (json.success) {
+          setData(json.data);
+        } else {
+          throw new Error(json.message || "Failed to load report");
+        }
+      })
+      .catch((err) => {
+        console.log("API report failed, generating from member data:", err.message);
+        // Generate report from member data
+        const reportData = generateReportFromMembers(activeReport, members.length > 0 ? members : DUMMY_MEMBERS);
+        setData(reportData);
+      })
+      .finally(() => setLoading(false));
+  }, [activeReport, members]);
 
   return (
     <div className="reports-container">
@@ -680,8 +759,12 @@ export default function Reports() {
                 <p className="loading">Loading {activeReport} report...</p>
               ) : error ? (
                 <div className="error-message">{error}</div>
+              ) : data && data.error ? (
+                <div className="error">
+                  <p>Error loading report: {data.error}</p>
+                </div>
               ) : data ? (
-                renderReportData()
+                renderReport()
               ) : (
                 <p className="loading">No data available</p>
               )}

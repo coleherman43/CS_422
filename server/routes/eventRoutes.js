@@ -23,6 +23,12 @@ router.put('/:id', EventController.updateEvent);
 // DELETE /api/events/:id - delete event
 router.delete('/:id', EventController.deleteEvent);
 
+// GET /api/events/:id/qrcode - generate QR code for event (returns JSON with data URL)
+router.get('/:id/qrcode', EventController.generateQRCode);
+
+// GET /api/events/:id/qrcode/image - get QR code as image file
+router.get('/:id/qrcode/image', EventController.getQRCodeImage);
+
 // POST /api/events/:id/checkin - check in to event
 router.post('/:id/checkin', EventController.checkInMember);
 

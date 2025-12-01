@@ -1,5 +1,6 @@
 const { Event, Attendance, Member } = require('../models');
 const EmailService = require('../utils/emailService');
+const QRCodeService = require('../utils/qrCodeService');
 
 class EventController {
   // Create new event
@@ -198,8 +199,18 @@ class EventController {
         });
       }
 
-      // TODO: Validate QR code token when QR implementation is added
-      // For now, just record the check-in
+      // Validate QR code token if provided
+      if (qr_code_token) {
+        const validation = QRCodeService.validateToken(qr_code_token, parseInt(eventId));
+        if (!validation.valid) {
+          return res.status(400).json({
+            success: false,
+            message: validation.error || 'Invalid QR code token'
+          });
+        }
+      }
+
+      // Record the check-in
       const checkIn = await Attendance.recordCheckIn(member_id, eventId, qr_code_token);
 
       // Send check-in confirmation email (non-blocking - don't fail check-in if email fails)
@@ -292,6 +303,105 @@ class EventController {
       });
     } catch (error) {
       console.error('Get events by creator error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  // Generate QR code for event
+  static async generateQRCode(req, res) {
+    try {
+      const { id: eventId } = req.params;
+      const { expiration_hours } = req.query; // Optional: custom expiration in hours
+
+      // Validate event exists
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+
+      // Calculate expiration time if provided
+      let expirationMs = null;
+      if (expiration_hours) {
+        const hours = parseFloat(expiration_hours);
+        if (isNaN(hours) || hours <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid expiration_hours parameter'
+          });
+        }
+        expirationMs = hours * 60 * 60 * 1000; // Convert to milliseconds
+      }
+
+      // Generate token
+      const token = QRCodeService.generateToken(parseInt(eventId), expirationMs);
+
+      // Generate QR code as data URL
+      const qrCodeDataURL = await QRCodeService.generateQRCodeDataURL(token);
+      const expirationDate = QRCodeService.getTokenExpiration(token);
+
+      res.json({
+        success: true,
+        data: {
+          qr_code: qrCodeDataURL,
+          token: token, // Include token for API usage
+          event_id: parseInt(eventId),
+          expires_at: expirationDate ? expirationDate.toISOString() : null,
+          expires_in_seconds: expirationDate ? Math.floor((expirationDate.getTime() - Date.now()) / 1000) : null
+        }
+      });
+    } catch (error) {
+      console.error('Generate QR code error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  // Get QR code as image file
+  static async getQRCodeImage(req, res) {
+    try {
+      const { id: eventId } = req.params;
+      const { expiration_hours } = req.query;
+
+      // Validate event exists
+      const event = await Event.findById(eventId);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: 'Event not found'
+        });
+      }
+
+      // Calculate expiration time if provided
+      let expirationMs = null;
+      if (expiration_hours) {
+        const hours = parseFloat(expiration_hours);
+        if (isNaN(hours) || hours <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid expiration_hours parameter'
+          });
+        }
+        expirationMs = hours * 60 * 60 * 1000;
+      }
+
+      // Generate token and QR code
+      const token = QRCodeService.generateToken(parseInt(eventId), expirationMs);
+      const qrCodeBuffer = await QRCodeService.generateQRCodeBuffer(token);
+
+      // Set response headers for image
+      res.setHeader('Content-Type', 'image/png');
+      res.setHeader('Content-Disposition', `inline; filename="qr-code-event-${eventId}.png"`);
+      res.send(qrCodeBuffer);
+    } catch (error) {
+      console.error('Get QR code image error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

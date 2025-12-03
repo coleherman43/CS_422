@@ -41,7 +41,10 @@ class AuthController {
 
       console.log(`✅ Member found: ${member.name} (${member.email})`);
 
+      // Ensure we use port 3000 for React app (not server port)
       const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      // Override if FRONTEND_URL points to wrong port
+      const baseUrlFinal = baseUrl.includes(':5001') ? "http://localhost:3000" : baseUrl;
       let magicLink;
 
       // Try Firebase first — if fails → dev mode
@@ -53,7 +56,7 @@ class AuthController {
 
         console.log("⚡ Firebase magic link generating...");
         magicLink = await admin.auth().generateSignInWithEmailLink(email, {
-          url: `${baseUrl}/verify`,
+          url: `${baseUrlFinal}/verify`,
           handleCodeInApp: false
         });
 
@@ -67,7 +70,7 @@ class AuthController {
         if (!global.devTokens) global.devTokens = new Map();
         global.devTokens.set(devToken, { email, memberId: member.id, expiresAt });
 
-        magicLink = `${baseUrl}/verify?token=${devToken}&email=${encodeURIComponent(email)}`;
+        magicLink = `${baseUrlFinal}/verify?token=${devToken}&email=${encodeURIComponent(email)}`;
         console.log(`🔗 Dev magic link: ${magicLink}`);
       }
 

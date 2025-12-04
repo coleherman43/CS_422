@@ -1,6 +1,9 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Log the database URL being used (for debugging local vs remote issues)
+console.log('Using DATABASE_URL:', process.env.DATABASE_URL);
+
 // Create PostgreSQL connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

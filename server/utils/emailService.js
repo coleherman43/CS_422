@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const https = require('https');
 
 class EmailService {
   // Initialize email transporter
@@ -52,9 +53,79 @@ class EmailService {
     }
   }
 
+  // Send email using SendGrid HTTP API (bypasses SMTP blocking, no domain verification needed)
+  static async sendEmailViaSendGrid(to, subject, text, html = null) {
+    return new Promise((resolve, reject) => {
+      try {
+        const fromEmail = process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@example.com';
+        // Extract email from "Name <email>" format if needed
+        const from = fromEmail.includes('<') ? fromEmail.match(/<(.+)>/)[1] : fromEmail;
+
+        const payload = JSON.stringify({
+          personalizations: [{
+            to: [{ email: to }],
+            subject: subject
+          }],
+          from: { email: from },
+          content: [
+            { type: 'text/plain', value: text },
+            { type: 'text/html', value: html || text.replace(/\n/g, '<br>') }
+          ]
+        });
+
+        const options = {
+          hostname: 'api.sendgrid.com',
+          port: 443,
+          path: '/v3/mail/send',
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload)
+          }
+        };
+
+        const req = https.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => { data += chunk; });
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              const messageId = res.headers['x-message-id'] || `sg_${Date.now()}`;
+              console.log('📧 Email sent successfully via SendGrid:', messageId);
+              resolve({ success: true, messageId: messageId, mode: 'sendgrid' });
+            } else {
+              reject(new Error(`SendGrid API error (${res.statusCode}): ${data}`));
+            }
+          });
+        });
+
+        req.on('error', (error) => {
+          reject(error);
+        });
+
+        req.write(payload);
+        req.end();
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
   // Send email helper method
   static async sendEmail(to, subject, text, html = null) {
-    // Try Resend API first (if configured)
+    // Try SendGrid HTTP API first (if configured) - works without domain verification
+    if (process.env.SENDGRID_API_KEY) {
+      console.log('📧 Using SendGrid HTTP API (SENDGRID_API_KEY detected)');
+      try {
+        return await this.sendEmailViaSendGrid(to, subject, text, html);
+      } catch (error) {
+        console.error('❌ SendGrid API failed, falling back to other methods:', error.message);
+        console.error('SendGrid error details:', error);
+        // Fall through to Resend or SMTP
+      }
+    }
+
+    // Try Resend API second (if configured)
     if (process.env.RESEND_API_KEY) {
       console.log('📧 Using Resend API (RESEND_API_KEY detected)');
       try {
@@ -64,8 +135,6 @@ class EmailService {
         console.error('Resend error details:', error);
         // Fall through to SMTP or console logging
       }
-    } else {
-      console.log('⚠️  RESEND_API_KEY not found, using SMTP or console fallback');
     }
 
     const transporter = this.getTransporter();

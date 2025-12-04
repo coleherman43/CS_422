@@ -5,6 +5,7 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard"; // Dashboard already handles sub-routes
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import { initializeApp } from "firebase/app";
+import { API_URL } from "./config";
 
 // Initialize Firebase (minimal config - will need to be set by frontend team)
 const firebaseConfig = {
@@ -30,7 +31,7 @@ function Verify({ setIsLoggedIn }) {
         // Check for development token (when Firebase is not configured)
         if (token && email) {
           console.log("Using development token authentication");
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/verify`, {
+          const response = await fetch(`${API_URL}/auth/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token, email }),
@@ -82,7 +83,7 @@ function Verify({ setIsLoggedIn }) {
           const idToken = await result.user.getIdToken();
           console.log("ID token obtained, verifying with backend...");
 
-          const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+          const apiUrl = API_URL;
           console.log("Calling backend API:", `${apiUrl}/auth/verify`);
           
           const response = await fetch(`${apiUrl}/auth/verify`, {

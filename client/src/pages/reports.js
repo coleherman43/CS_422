@@ -1,6 +1,7 @@
 // src/pages/reports.js
 import React, { useState, useEffect } from "react";
 import "../styles/Reports.css";
+import { API_URL } from "../config";
 
 // Import dummy data from members page (same source)
 const DUMMY_MEMBERS = [
@@ -544,7 +545,7 @@ export default function Reports() {
   useEffect(() => {
     const fetchMembers = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/members`);
+        const response = await fetch(`${API_URL}/members`);
         const result = await response.json();
         
         if (result.success && result.data && result.data.members) {
@@ -691,7 +692,7 @@ export default function Reports() {
     setError(null);
 
     // Try to fetch from API first
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    const apiUrl = API_URL;
     fetch(`${apiUrl}/reports/${activeReport}`)
       .then((res) => {
         if (!res.ok) {

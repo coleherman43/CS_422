@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import "../styles/Login.css";
+import { API_URL } from "../config";
 
 function Login({ setIsLoggedIn }) {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ function Login({ setIsLoggedIn }) {
     window.localStorage.setItem("emailForSignIn", email);
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/request-login`, {
+      const response = await fetch(`${API_URL}/auth/request-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

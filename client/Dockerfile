@@ -21,21 +21,25 @@ FROM nginx:alpine
 # Copy built files from builder
 COPY --from=builder /app/build /usr/share/nginx/html
 
-# Copy nginx configuration (optional - for SPA routing)
-RUN echo 'server { \
-    listen 80; \
-    server_name _; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' > /etc/nginx/conf.d/default.conf
+# Create startup script that generates nginx config with PORT from env
+RUN echo '#!/bin/sh' > /start.sh && \
+    echo 'PORT=${PORT:-80}' >> /start.sh && \
+    echo 'echo "server {" > /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    listen $PORT;" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    server_name _;" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    root /usr/share/nginx/html;" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    index index.html;" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    location / {" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "        try_files \$uri \$uri/ /index.html;" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "    }" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "}" >> /etc/nginx/conf.d/default.conf' >> /start.sh && \
+    echo 'echo "Starting nginx on port $PORT"' >> /start.sh && \
+    echo 'exec nginx -g "daemon off;"' >> /start.sh && \
+    chmod +x /start.sh
 
-# Expose port
+# Expose port (Railway will set PORT env var)
 EXPOSE 80
 
-# Use both ENTRYPOINT and CMD to ensure nginx runs
-ENTRYPOINT ["nginx"]
-CMD ["-g", "daemon off;"]
+# Use startup script
+CMD ["/start.sh"]
 

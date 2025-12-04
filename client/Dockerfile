@@ -35,6 +35,7 @@ RUN echo 'server { \
 # Expose port
 EXPOSE 80
 
-# Start nginx
-CMD ["nginx", "-g", "daemon off;"]
+# Use both ENTRYPOINT and CMD to ensure nginx runs
+ENTRYPOINT ["nginx"]
+CMD ["-g", "daemon off;"]
 

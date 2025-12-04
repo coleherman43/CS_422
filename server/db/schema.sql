@@ -55,7 +55,7 @@ CREATE TABLE attendance (
     member_id INTEGER REFERENCES members(id) ON DELETE CASCADE,
     event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
     checked_in_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    qr_code_token VARCHAR(100),
+    qr_code_token VARCHAR(500),
     UNIQUE(member_id, event_id) -- Prevent duplicate check-ins
 );
 

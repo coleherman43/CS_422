@@ -4,6 +4,7 @@ import { Routes, Route, Link, useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import CreateEvent from "./createEvent";
 import ViewEvent from "./viewEvent";
+import CheckIn from "./checkIn";
 import StaggeredMenu from "../components/StaggeredMenu";
 import Member from "./member";
 import Events from "./events";
@@ -140,6 +141,8 @@ function Dashboard({ setIsLoggedIn }) {
       <Route path="events" element={<Events />} />
       <Route path="events/create" element={<CreateEvent />} />
       <Route path="events/:id" element={<ViewEvent />} />
+      <Route path="checkin/:eventId" element={<CheckIn />} />
+      <Route path="checkin" element={<CheckIn />} />
       <Route path="reports" element={<Reports />} />
 
 

@@ -170,7 +170,7 @@ class EventController {
   static async checkInMember(req, res) {
     try {
       const { id: eventId } = req.params;
-      const { member_id, qr_code_token } = req.body;
+      const { member_id, name, uo_id, qr_code_token } = req.body;
 
       // Validate event exists
       const event = await Event.findById(eventId);
@@ -181,37 +181,90 @@ class EventController {
         });
       }
 
-      // Validate member exists
-      const member = await Member.findById(member_id);
-      if (!member) {
-        return res.status(404).json({
-          success: false,
-          message: 'Member not found'
-        });
-      }
-
-      // Check if already checked in
-      const alreadyCheckedIn = await Attendance.isCheckedIn(member_id, eventId);
-      if (alreadyCheckedIn) {
-        return res.status(409).json({
-          success: false,
-          message: 'Member already checked in to this event'
-        });
-      }
-
-      // Validate QR code token if provided
-      if (qr_code_token) {
+      let member;
+      
+      // If member_id is provided, use it directly
+      if (member_id) {
+        member = await Member.findById(member_id);
+        if (!member) {
+          return res.status(404).json({
+            success: false,
+            message: 'Member not found'
+          });
+        }
+        // For member_id check-ins, QR code token is optional
+        if (qr_code_token) {
+          const validation = QRCodeService.validateToken(qr_code_token, parseInt(eventId));
+          if (!validation.valid) {
+            return res.status(400).json({
+              success: false,
+              message: validation.error || 'Invalid QR code token'
+            });
+          }
+        }
+      } 
+      // Otherwise, look up by name (for QR code check-ins)
+      else if (name) {
+        // Validate input lengths
+        if (name.length > 100) {
+          return res.status(400).json({
+            success: false,
+            message: 'Name is too long (maximum 100 characters)'
+          });
+        }
+        if (uo_id && uo_id.length > 20) {
+          return res.status(400).json({
+            success: false,
+            message: '95# is too long (maximum 20 characters)'
+          });
+        }
+        
+        // For QR code check-ins, token is required
+        if (!qr_code_token) {
+          return res.status(400).json({
+            success: false,
+            message: 'QR code token is required for check-in'
+          });
+        }
+        
+        // Validate QR code token
         const validation = QRCodeService.validateToken(qr_code_token, parseInt(eventId));
         if (!validation.valid) {
           return res.status(400).json({
             success: false,
-            message: validation.error || 'Invalid QR code token'
+            message: validation.error || 'Invalid or expired QR code token'
           });
         }
+        
+        // Look up member by name (and optionally verify UO ID if provided)
+        member = await Member.findByNameForCheckIn(name.trim(), uo_id ? uo_id.trim() : null);
+        if (!member) {
+          const errorMsg = uo_id 
+            ? 'Member not found. Please verify your name and 95# are correct.'
+            : 'Member not found. Please verify your name is correct.';
+          return res.status(404).json({
+            success: false,
+            message: errorMsg
+          });
+        }
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'Either member_id or name is required'
+        });
+      }
+
+      // Check if already checked in
+      const alreadyCheckedIn = await Attendance.isCheckedIn(member.id, eventId);
+      if (alreadyCheckedIn) {
+        return res.status(409).json({
+          success: false,
+          message: 'You have already checked in to this event'
+        });
       }
 
       // Record the check-in
-      const checkIn = await Attendance.recordCheckIn(member_id, eventId, qr_code_token);
+      const checkIn = await Attendance.recordCheckIn(member.id, eventId, qr_code_token);
 
       // Send check-in confirmation email (non-blocking - don't fail check-in if email fails)
       try {
@@ -224,13 +277,15 @@ class EventController {
       res.status(201).json({
         success: true,
         message: 'Check-in successful',
-        data: { checkIn }
+        data: { checkIn, member: { id: member.id, name: member.name } }
       });
     } catch (error) {
       console.error('Check-in error:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: error.message || 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
       });
     }
   }
@@ -341,8 +396,12 @@ class EventController {
       // Generate token
       const token = QRCodeService.generateToken(parseInt(eventId), expirationMs);
 
-      // Generate QR code as data URL
-      const qrCodeDataURL = await QRCodeService.generateQRCodeDataURL(token);
+      // Get frontend URL for QR code redirect (use public check-in route, not dashboard)
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      const checkInUrl = `${frontendUrl}/checkin/${eventId}?token=${encodeURIComponent(token)}&eventId=${eventId}`;
+
+      // Generate QR code as data URL (encode the URL, not just the token)
+      const qrCodeDataURL = await QRCodeService.generateQRCodeDataURL(checkInUrl);
       const expirationDate = QRCodeService.getTokenExpiration(token);
 
       res.json({
@@ -350,6 +409,7 @@ class EventController {
         data: {
           qr_code: qrCodeDataURL,
           token: token, // Include token for API usage
+          check_in_url: checkInUrl, // Include the full URL
           event_id: parseInt(eventId),
           expires_at: expirationDate ? expirationDate.toISOString() : null,
           expires_in_seconds: expirationDate ? Math.floor((expirationDate.getTime() - Date.now()) / 1000) : null
@@ -392,9 +452,15 @@ class EventController {
         expirationMs = hours * 60 * 60 * 1000;
       }
 
-      // Generate token and QR code
+      // Generate token
       const token = QRCodeService.generateToken(parseInt(eventId), expirationMs);
-      const qrCodeBuffer = await QRCodeService.generateQRCodeBuffer(token);
+      
+      // Get frontend URL for QR code redirect (use public check-in route, not dashboard)
+      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+      const checkInUrl = `${frontendUrl}/checkin/${eventId}?token=${encodeURIComponent(token)}&eventId=${eventId}`;
+      
+      // Generate QR code as buffer (encode the URL, not just the token)
+      const qrCodeBuffer = await QRCodeService.generateQRCodeBuffer(checkInUrl);
 
       // Set response headers for image
       res.setHeader('Content-Type', 'image/png');

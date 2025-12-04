@@ -1,6 +1,8 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Log the database URL being used (for debugging local vs remote issues)
+console.log('Using DATABASE_URL:', process.env.DATABASE_URL);
 // Validate DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
   console.error('❌ ERROR: DATABASE_URL environment variable is not set!');

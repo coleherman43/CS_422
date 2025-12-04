@@ -15,7 +15,7 @@ This guide explains how to configure the database connection for the Flock Manag
    ```bash
    createdb flock_manager
    # or using psql:
-   psql -U postgres -c "CREATE DATABASE flock_manager;"
+   
    ```
 
 4. Run the schema:

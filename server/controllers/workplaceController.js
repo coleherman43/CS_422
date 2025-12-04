@@ -21,5 +21,3 @@ class WorkplaceController {
 
 module.exports = WorkplaceController;
 
-
-

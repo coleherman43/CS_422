@@ -263,7 +263,8 @@ function Member() {
   useEffect(() => {
     fetchMembers();
     fetchDropdownData();
-  }, [filter, statusFilter]);
+  }, [statusFilter]);
+  
 
   // Handle add member
   const handleAddMember = async (e) => {
@@ -443,19 +444,30 @@ function Member() {
 
   // Filter members
   const filteredMembers = members.filter((member) => {
+    // SEARCH FILTER — name or email
+    if (filter) {
+      const search = filter.toLowerCase();
+      if (
+        !member.name.toLowerCase().includes(search) &&
+        !member.email.toLowerCase().includes(search)
+      ) {
+        return false;
+      }
+    }
+  
+    // STATUS FILTER
+    if (statusFilter !== "All" && member.membership_status !== statusFilter.toLowerCase()) {
+      return false;
+    }
+  
+    // DUES FILTER
     if (duesFilter !== "All" && member.dues_status !== duesFilter.toLowerCase()) {
       return false;
     }
+  
     return true;
   });
-
-  if (loading && members.length === 0) {
-    return (
-      <div className="member-container">
-        <p>Loading members...</p>
-      </div>
-    );
-  }
+  
 
   return (
     <div className="member-container">

@@ -25,6 +25,20 @@ function Login({ setIsLoggedIn }) {
         body: JSON.stringify({ email }),
       });
 
+      if (!response.ok) {
+        // Try to parse error response
+        let errorMessage = "Failed to send login link.";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch (e) {
+          // If response isn't JSON, use status text
+          errorMessage = `Server error: ${response.status} ${response.statusText}`;
+        }
+        alert(errorMessage);
+        return;
+      }
+
       const data = await response.json();
       if (data.success) {
         alert("Check your email for a login link!");
@@ -33,7 +47,11 @@ function Login({ setIsLoggedIn }) {
       }
     } catch (error) {
       console.error("Login error:", error);
+      if (error.message === "Failed to fetch" || error.message.includes("ERR_CONNECTION_REFUSED")) {
+        alert("Cannot connect to server. Please make sure the server is running on port 5000.");
+      } else {
       alert("An error occurred. Please try again.");
+      }
     }
   }
 

@@ -105,9 +105,9 @@ function Dashboard({ setIsLoggedIn }) {
               <div className="dashboard-card">
                 <h2>Recent Activity</h2>
                 <ul className="notifications">
-                  <li>✔ Jane Doe renewed membership</li>
-                  <li>✔ John Smith attended Office Hours</li>
-                  <li>➕ New member registered: Alex Green</li>
+                  <li>Jane Doe renewed membership</li>
+                  <li>John Smith attended Office Hours</li>
+                  <li>New member registered: Alex Green</li>
                 </ul>
               </div>
 

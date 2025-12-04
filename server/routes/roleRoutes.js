@@ -7,5 +7,3 @@ router.get('/', RoleController.getRoles);
 
 module.exports = router;
 
-
-

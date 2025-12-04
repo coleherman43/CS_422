@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useNavigate } from "react-router-dom";
 import "./app.css";
 import Login from "./pages/login";
@@ -19,12 +19,12 @@ const auth = app ? getAuth(app) : null;
 function Verify({ setIsLoggedIn }) {
   const [searchParams] = useSearchParams();
   const [status, setStatus] = useState("Verifying...");
+  const [emailInput, setEmailInput] = useState("");
+  const [needsEmail, setNeedsEmail] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    async function verifyEmailLink() {
+  const verifyEmailLink = useCallback(async (email) => {
       try {
-        const email = window.localStorage.getItem("emailForSignIn") || searchParams.get("email");
         const token = searchParams.get("token");
 
         // Check for development token (when Firebase is not configured)
@@ -59,17 +59,42 @@ function Verify({ setIsLoggedIn }) {
           return;
         }
 
-        if (isSignInWithEmailLink(auth, window.location.href) && email) {
-          const result = await signInWithEmailLink(auth, email, window.location.href);
-          const idToken = await result.user.getIdToken();
+        // Check if this is a Firebase email link
+        if (!isSignInWithEmailLink(auth, window.location.href)) {
+          setStatus("Invalid verification link.");
+          setTimeout(() => navigate("/login"), 2000);
+          return;
+        }
 
-          const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:5000/api'}/auth/verify`, {
+        // If email not provided and it's a Firebase link, we need the email
+        if (!email) {
+          setNeedsEmail(true);
+          setStatus("Please enter your email address to complete sign-in:");
+          return;
+        }
+
+        // Complete Firebase email link sign-in
+        console.log("Attempting Firebase sign-in with email:", email);
+        console.log("Current URL:", window.location.href);
+        try {
+          const result = await signInWithEmailLink(auth, email, window.location.href);
+          console.log("Firebase sign-in successful, getting ID token...");
+          const idToken = await result.user.getIdToken();
+          console.log("ID token obtained, verifying with backend...");
+
+          const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+          console.log("Calling backend API:", `${apiUrl}/auth/verify`);
+          
+          const response = await fetch(`${apiUrl}/auth/verify`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ idToken }),
           });
 
+          console.log("Backend response status:", response.status);
           const data = await response.json();
+          console.log("Backend response data:", data);
+          
           if (data.success && data.data.token) {
             localStorage.setItem("token", data.data.token);
             localStorage.setItem("loggedIn", "true");
@@ -78,22 +103,73 @@ function Verify({ setIsLoggedIn }) {
             setStatus("Login successful! Redirecting...");
             setTimeout(() => navigate("/dashboard"), 1000);
           } else {
-            setStatus(data.message || "Verification failed.");
-            setTimeout(() => navigate("/login"), 2000);
+            const errorMsg = data.message || data.details || "Verification failed.";
+            console.error("Backend verification failed:", errorMsg);
+            setStatus(`Verification failed: ${errorMsg}`);
+            setTimeout(() => navigate("/login"), 3000);
           }
-        } else {
-          setStatus("Invalid verification link.");
-          setTimeout(() => navigate("/login"), 2000);
+        } catch (firebaseError) {
+          console.error("Firebase sign-in error:", firebaseError);
+          console.error("Error code:", firebaseError.code);
+          console.error("Error message:", firebaseError.message);
+          
+          if (firebaseError.code === 'auth/invalid-action-code') {
+            setStatus("This link has expired or been used already. Please request a new login link.");
+            setTimeout(() => navigate("/login"), 3000);
+          } else if (firebaseError.code === 'auth/invalid-email') {
+            setStatus("Invalid email address. Please try again.");
+            setNeedsEmail(true);
+          } else {
+            setStatus(`Error: ${firebaseError.message || firebaseError.code || 'Unknown error'}. Please try again.`);
+            setNeedsEmail(true);
+          }
         }
       } catch (error) {
         console.error("Verify error:", error);
-        setStatus("An error occurred during verification.");
-        setTimeout(() => navigate("/login"), 2000);
+        console.error("Error stack:", error.stack);
+        const errorMessage = error.message || error.toString() || "Unknown error";
+        setStatus(`An error occurred during verification: ${errorMessage}`);
+        setTimeout(() => navigate("/login"), 3000);
       }
-    }
-
-    verifyEmailLink();
   }, [searchParams, navigate, setIsLoggedIn]);
+
+  useEffect(() => {
+    // Try to get email from localStorage or URL params
+    const email = window.localStorage.getItem("emailForSignIn") || searchParams.get("email");
+    verifyEmailLink(email);
+  }, [searchParams, verifyEmailLink]);
+
+  const handleEmailSubmit = (e) => {
+    e.preventDefault();
+    if (!emailInput || !emailInput.includes("@")) {
+      setStatus("Please enter a valid email address.");
+      return;
+    }
+    setNeedsEmail(false);
+    setStatus("Verifying...");
+    verifyEmailLink(emailInput);
+  };
+
+  if (needsEmail) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", height: "100vh", gap: "20px" }}>
+        <p>{status}</p>
+        <form onSubmit={handleEmailSubmit} style={{ display: "flex", flexDirection: "column", gap: "10px", width: "300px" }}>
+          <input
+            type="email"
+            value={emailInput}
+            onChange={(e) => setEmailInput(e.target.value)}
+            placeholder="Enter your email"
+            style={{ padding: "10px", fontSize: "16px" }}
+            autoFocus
+          />
+          <button type="submit" style={{ padding: "10px", fontSize: "16px", cursor: "pointer" }}>
+            Continue
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>

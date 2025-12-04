@@ -17,6 +17,22 @@ class Member {
       graduation_year
     } = memberData;
 
+    // Convert empty strings to null for integer fields
+    const normalizedWorkplaceId = (workplace_id === '' || workplace_id === null || workplace_id === undefined) 
+      ? null 
+      : parseInt(workplace_id);
+    const normalizedRoleId = (role_id === '' || role_id === null || role_id === undefined) 
+      ? null 
+      : parseInt(role_id);
+    const normalizedGraduationYear = (graduation_year === '' || graduation_year === null || graduation_year === undefined) 
+      ? null 
+      : graduation_year ? parseInt(graduation_year) : null;
+
+    // Convert empty strings to null for text fields
+    const normalizedMajor = (major === '') ? null : major;
+    const normalizedPhone = (phone === '') ? null : phone;
+    const normalizedPronouns = (pronouns === '') ? null : pronouns;
+
     const sql = `
       INSERT INTO members (
         name, email, uo_id, workplace_id, role_id, dues_status, 
@@ -26,8 +42,17 @@ class Member {
     `;
 
     const values = [
-      name, email, uo_id, workplace_id, role_id, dues_status,
-      membership_status, major, phone, pronouns, graduation_year
+      name, 
+      email, 
+      uo_id, 
+      normalizedWorkplaceId, 
+      normalizedRoleId, 
+      dues_status,
+      membership_status, 
+      normalizedMajor, 
+      normalizedPhone, 
+      normalizedPronouns, 
+      normalizedGraduationYear
     ];
 
     const result = await query(sql, values);
@@ -140,8 +165,29 @@ class Member {
 
     Object.keys(data).forEach(key => {
       if (allowedFields.includes(key) && data[key] !== undefined) {
+        let normalizedValue = data[key];
+        
+        // Normalize integer fields: convert empty strings to null
+        if (key === 'workplace_id' || key === 'role_id') {
+          normalizedValue = (normalizedValue === '' || normalizedValue === null) 
+            ? null 
+            : parseInt(normalizedValue);
+        }
+        
+        // Normalize graduation_year
+        if (key === 'graduation_year') {
+          normalizedValue = (normalizedValue === '' || normalizedValue === null) 
+            ? null 
+            : normalizedValue ? parseInt(normalizedValue) : null;
+        }
+        
+        // Normalize text fields: convert empty strings to null
+        if (key === 'major' || key === 'phone' || key === 'pronouns') {
+          normalizedValue = (normalizedValue === '') ? null : normalizedValue;
+        }
+        
         updates.push(`${key} = $${++paramCount}`);
-        values.push(data[key]);
+        values.push(normalizedValue);
       }
     });
 

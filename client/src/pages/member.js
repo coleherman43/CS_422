@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import "../styles/Member.css";
+import { API_URL } from "../config";
 
 // Dummy data for demonstration
 const DUMMY_MEMBERS = [
@@ -166,12 +167,12 @@ const DUMMY_WORKPLACES = [
 ];
 
 function Member() {
-  const [members, setMembers] = useState(DUMMY_MEMBERS);
-  const [roles, setRoles] = useState(DUMMY_ROLES);
-  const [workplaces, setWorkplaces] = useState(DUMMY_WORKPLACES);
+  const [members, setMembers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [workplaces, setWorkplaces] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [useDummyData, setUseDummyData] = useState(true);
+  const [useDummyData, setUseDummyData] = useState(false);
   
   // Filters
   const [filter, setFilter] = useState("");
@@ -212,7 +213,7 @@ function Member() {
       if (filter) params.append("search", filter);
       if (statusFilter !== "All") params.append("membership_status", statusFilter.toLowerCase());
       
-      const response = await fetch(`/api/members?${params.toString()}`);
+      const response = await fetch(`${API_URL}/members?${params.toString()}`);
       const data = await response.json();
       
       if (data.success) {
@@ -220,16 +221,18 @@ function Member() {
         setError(null);
       } else {
         setError(data.message || "Failed to fetch members");
-        // Fallback to dummy data on error
-        setUseDummyData(true);
-        setMembers(DUMMY_MEMBERS);
+        // Don't fall back to dummy data for API errors - show the error instead
       }
     } catch (err) {
       console.error("Error fetching members:", err);
-      setError("Failed to load members. Showing dummy data instead.");
-      // Fallback to dummy data on error
-      setUseDummyData(true);
-      setMembers(DUMMY_MEMBERS);
+      // Only fall back to dummy data if it's a network error (API unavailable)
+      if (err.message === "Failed to fetch" || err.name === "TypeError") {
+        setError("Cannot connect to server. Showing dummy data instead.");
+        setUseDummyData(true);
+        setMembers(DUMMY_MEMBERS);
+      } else {
+        setError("Failed to load members: " + err.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -244,19 +247,23 @@ function Member() {
     
     try {
       const [rolesRes, workplacesRes] = await Promise.all([
-        fetch("/api/roles"),
-        fetch("/api/workplaces")
+        fetch(`${API_URL}/roles`),
+        fetch(`${API_URL}/workplaces`)
       ]);
       
       const rolesData = await rolesRes.json();
       const workplacesData = await workplacesRes.json();
       
       if (rolesData.success) setRoles(rolesData.data.roles);
+      else setRoles(DUMMY_ROLES);
+      
       if (workplacesData.success) setWorkplaces(workplacesData.data.workplaces);
+      else setWorkplaces(DUMMY_WORKPLACES);
     } catch (err) {
       console.error("Error fetching dropdown data:", err);
-      // Keep dummy data on error
-      setUseDummyData(true);
+      // Use dummy data for dropdowns if API fails, but don't switch to full dummy mode
+      setRoles(DUMMY_ROLES);
+      setWorkplaces(DUMMY_WORKPLACES);
     }
   };
 
@@ -288,7 +295,7 @@ function Member() {
     }
     
     try {
-      const response = await fetch("/api/members", {
+      const response = await fetch(`${API_URL}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
@@ -336,7 +343,7 @@ function Member() {
     }
     
     try {
-      const response = await fetch(`/api/members/${editingMember.id}`, {
+      const response = await fetch(`${API_URL}/members/${editingMember.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData)
@@ -376,7 +383,7 @@ function Member() {
     }
     
     try {
-      const response = await fetch(`/api/members/${id}`, {
+      const response = await fetch(`${API_URL}/members/${id}`, {
         method: "DELETE"
       });
       

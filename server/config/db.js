@@ -1,10 +1,17 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+// Choose database URL based on environment
+const isTest = process.env.NODE_ENV === 'test';
+const effectiveDatabaseUrl = isTest
+  ? (process.env.TEST_DATABASE_URL || process.env.DATABASE_URL)
+  : process.env.DATABASE_URL;
+
 // Log the database URL being used (for debugging local vs remote issues)
-console.log('Using DATABASE_URL:', process.env.DATABASE_URL);
-// Validate DATABASE_URL is set
-if (!process.env.DATABASE_URL) {
+console.log('Using database URL:', effectiveDatabaseUrl || '(not set)');
+
+// Validate URL is set
+if (!effectiveDatabaseUrl) {
   console.error('❌ ERROR: DATABASE_URL environment variable is not set!');
   console.error('   Please create a .env file in the server directory with DATABASE_URL');
   console.error('   Example: DATABASE_URL=postgresql://user:password@localhost:5432/dbname');
@@ -16,7 +23,7 @@ if (!process.env.DATABASE_URL) {
 
 // Create PostgreSQL connection pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: effectiveDatabaseUrl,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
@@ -32,8 +39,8 @@ pool.on('error', (err) => {
 
 // Helper function to execute queries
 const query = async (text, params) => {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is not configured. Please set it in your .env file.');
+  if (!effectiveDatabaseUrl) {
+    throw new Error('DATABASE_URL is not configured. Please set it in your .env file (or TEST_DATABASE_URL for tests).');
   }
   
   const start = Date.now();

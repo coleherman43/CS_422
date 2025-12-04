@@ -4,20 +4,27 @@ const { Member, Event, Attendance, Role, Workplace } = require('../models');
 describe('Database Connection and Basic Operations', () => {
   // Global cleanup before all tests
   beforeAll(async () => {
-    // Clean up any test data that might exist
-    await query(`DELETE FROM members WHERE email LIKE '%test%@example.com'`);
-    await query(`DELETE FROM events WHERE title LIKE '%Test%'`);
-    await query(`DELETE FROM roles WHERE name LIKE '%Test%'`);
-    await query(`DELETE FROM workplaces WHERE name LIKE '%Test%'`);
+    // Clean up any test data that this suite is responsible for.
+    // Keep this narrow so we don't interfere with other test files.
+    await query(`DELETE FROM members WHERE email IN (
+      'constraint-test1@example.com',
+      'constraint-test2@example.com',
+      'transaction-test@example.com',
+      'rollback-test@example.com'
+    )`);
+    await query(`DELETE FROM events WHERE title IN ('Transaction Event')`);
   });
 
   // Global cleanup after all tests
   afterAll(async () => {
-    // Clean up any remaining test data
-    await query(`DELETE FROM members WHERE email LIKE '%test%@example.com'`);
-    await query(`DELETE FROM events WHERE title LIKE '%Test%'`);
-    await query(`DELETE FROM roles WHERE name LIKE '%Test%'`);
-    await query(`DELETE FROM workplaces WHERE name LIKE '%Test%'`);
+    // Clean up any remaining test data created by this suite only.
+    await query(`DELETE FROM members WHERE email IN (
+      'constraint-test1@example.com',
+      'constraint-test2@example.com',
+      'transaction-test@example.com',
+      'rollback-test@example.com'
+    )`);
+    await query(`DELETE FROM events WHERE title IN ('Transaction Event')`);
   });
 
   describe('Database Connection', () => {

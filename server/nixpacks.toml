@@ -1,0 +1,9 @@
+[providers]
+node = "18"
+
+[phases.install]
+cmds = ["npm ci"]
+
+[start]
+cmd = "npm start"
+

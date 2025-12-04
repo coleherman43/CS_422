@@ -5,9 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Flock Manager</title>
     <script>
-      // Runtime API URL configuration
-      // This will be replaced by the Dockerfile startup script
+      // Runtime configuration
+      // These will be replaced by the Dockerfile startup script
       window.API_URL = window.API_URL || 'REACT_APP_API_URL_PLACEHOLDER';
+      window.FIREBASE_CONFIG = window.FIREBASE_CONFIG || {
+        apiKey: 'REACT_APP_FIREBASE_API_KEY_PLACEHOLDER',
+        authDomain: 'REACT_APP_FIREBASE_AUTH_DOMAIN_PLACEHOLDER',
+        projectId: 'REACT_APP_FIREBASE_PROJECT_ID_PLACEHOLDER'
+      };
     </script>
   </head>
   <body>

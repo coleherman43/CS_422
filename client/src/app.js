@@ -5,15 +5,10 @@ import Login from "./pages/login";
 import Dashboard from "./pages/dashboard"; // Dashboard already handles sub-routes
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import { initializeApp } from "firebase/app";
-import { API_URL } from "./config";
+import { API_URL, FIREBASE_CONFIG } from "./config";
 
-// Initialize Firebase (minimal config - will need to be set by frontend team)
-const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-};
-const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
+// Initialize Firebase using runtime config
+const app = FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey ? initializeApp(FIREBASE_CONFIG) : null;
 const auth = app ? getAuth(app) : null;
 
 // Verify component to handle email link callback

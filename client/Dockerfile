@@ -42,8 +42,16 @@ RUN echo '#!/bin/sh' > /start.sh && \
     echo '' >> /start.sh && \
     echo 'API_URL=$RAW_API_URL' >> /start.sh && \
     echo '' >> /start.sh && \
-    echo '# Inject API URL into index.html' >> /start.sh && \
+    echo '# Get Firebase config from env vars' >> /start.sh && \
+    echo 'FIREBASE_API_KEY=${REACT_APP_FIREBASE_API_KEY:-REACT_APP_FIREBASE_API_KEY_PLACEHOLDER}' >> /start.sh && \
+    echo 'FIREBASE_AUTH_DOMAIN=${REACT_APP_FIREBASE_AUTH_DOMAIN:-REACT_APP_FIREBASE_AUTH_DOMAIN_PLACEHOLDER}' >> /start.sh && \
+    echo 'FIREBASE_PROJECT_ID=${REACT_APP_FIREBASE_PROJECT_ID:-REACT_APP_FIREBASE_PROJECT_ID_PLACEHOLDER}' >> /start.sh && \
+    echo '' >> /start.sh && \
+    echo '# Inject API URL and Firebase config into index.html' >> /start.sh && \
     echo 'sed -i "s|REACT_APP_API_URL_PLACEHOLDER|$API_URL|g" /usr/share/nginx/html/index.html' >> /start.sh && \
+    echo 'sed -i "s|REACT_APP_FIREBASE_API_KEY_PLACEHOLDER|$FIREBASE_API_KEY|g" /usr/share/nginx/html/index.html' >> /start.sh && \
+    echo 'sed -i "s|REACT_APP_FIREBASE_AUTH_DOMAIN_PLACEHOLDER|$FIREBASE_AUTH_DOMAIN|g" /usr/share/nginx/html/index.html' >> /start.sh && \
+    echo 'sed -i "s|REACT_APP_FIREBASE_PROJECT_ID_PLACEHOLDER|$FIREBASE_PROJECT_ID|g" /usr/share/nginx/html/index.html' >> /start.sh && \
     echo '' >> /start.sh && \
     echo '# Generate nginx config' >> /start.sh && \
     echo 'echo "server {" > /etc/nginx/conf.d/default.conf' >> /start.sh && \

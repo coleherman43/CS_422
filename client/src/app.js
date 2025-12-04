@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useSearchParams, useN
 import "./app.css";
 import Login from "./pages/login";
 import Dashboard from "./pages/dashboard"; // Dashboard already handles sub-routes
+import CheckIn from "./pages/checkIn"; // Public check-in page
 import { getAuth, isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
 import { initializeApp } from "firebase/app";
 import { API_URL, FIREBASE_CONFIG } from "./config";
@@ -204,6 +205,10 @@ function App() {
 
         {/* Verify email link */}
         <Route path="/verify" element={<Verify setIsLoggedIn={setIsLoggedIn} />} />
+
+        {/* Public check-in routes (no authentication required) */}
+        <Route path="/checkin/:eventId" element={<CheckIn />} />
+        <Route path="/checkin" element={<CheckIn />} />
 
         {/* Dashboard and all its sub-routes (members, events, reports, etc.) */}
         <Route

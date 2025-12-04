@@ -98,6 +98,41 @@ class Member {
     return result.rows[0];
   }
 
+  // Find member by name and UO ID (for QR code check-ins)
+  static async findByNameAndUOId(name, uo_id) {
+    const sql = `
+      SELECT m.*, r.name as role_name, w.name as workplace_name
+      FROM members m
+      LEFT JOIN roles r ON m.role_id = r.id
+      LEFT JOIN workplaces w ON m.workplace_id = w.id
+      WHERE LOWER(TRIM(m.name)) = LOWER(TRIM($1)) AND m.uo_id = $2
+    `;
+    const result = await query(sql, [name, uo_id]);
+    return result.rows[0];
+  }
+
+  // Find member by name (case-insensitive, for QR code check-ins)
+  // Optionally verify UO ID if provided
+  static async findByNameForCheckIn(name, uo_id = null) {
+    let sql = `
+      SELECT m.*, r.name as role_name, w.name as workplace_name
+      FROM members m
+      LEFT JOIN roles r ON m.role_id = r.id
+      LEFT JOIN workplaces w ON m.workplace_id = w.id
+      WHERE LOWER(TRIM(m.name)) = LOWER(TRIM($1))
+    `;
+    const params = [name];
+    
+    // If UO ID is provided, also verify it matches
+    if (uo_id) {
+      sql += ` AND m.uo_id = $2`;
+      params.push(uo_id);
+    }
+    
+    const result = await query(sql, params);
+    return result.rows[0];
+  }
+
   // Find all members with optional filters
   static async findAll(filters = {}) {
     let sql = `

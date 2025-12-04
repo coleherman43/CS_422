@@ -4,16 +4,16 @@
 
 export const getApiUrl = () => {
   // Check runtime config first (set via window variable or envsubst in Dockerfile)
-  if (typeof window !== 'undefined' && window.API_URL) {
+  if (typeof window !== 'undefined' && window.API_URL && window.API_URL !== 'REACT_APP_API_URL_PLACEHOLDER') {
     return window.API_URL;
   }
   
-  // Fall back to build-time env var
-  if (process.env.REACT_APP_API_URL) {
+  // Fall back to build-time env var (but ignore if it's the placeholder)
+  if (process.env.REACT_APP_API_URL && process.env.REACT_APP_API_URL !== 'REACT_APP_API_URL_PLACEHOLDER') {
     return process.env.REACT_APP_API_URL;
   }
   
-  // Default fallback
+  // Default fallback for development
   return 'http://localhost:5000/api';
 };
 

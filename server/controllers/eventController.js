@@ -205,9 +205,9 @@ class EventController {
       } 
       // Otherwise, look up by name (for QR code check-ins)
       else if (name) {
-        // Trim the name and UO ID first
-        const trimmedName = name.trim();
-        const trimmedUoId = uo_id ? uo_id.trim() : null;
+        // Trim and normalize the name and UO ID first
+        let trimmedName = name.trim();
+        let trimmedUoId = uo_id ? uo_id.trim() : null;
         
         // Validate name is not empty after trimming
         if (!trimmedName || trimmedName.length === 0) {
@@ -217,7 +217,16 @@ class EventController {
           });
         }
         
-        // Validate input lengths after trimming
+        // Truncate to database limits to prevent database errors
+        // Database: name VARCHAR(100), uo_id VARCHAR(20)
+        if (trimmedName.length > 100) {
+          trimmedName = trimmedName.substring(0, 100);
+        }
+        if (trimmedUoId && trimmedUoId.length > 20) {
+          trimmedUoId = trimmedUoId.substring(0, 20);
+        }
+        
+        // Validate input lengths after truncation (should always pass now, but double-check)
         if (trimmedName.length > 100) {
           return res.status(400).json({
             success: false,
@@ -248,12 +257,16 @@ class EventController {
           });
         }
         
+        // Normalize name: trim, collapse multiple spaces to single space
+        // This helps match names that might have extra spaces in the database
+        const normalizedName = trimmedName.replace(/\s+/g, ' ').trim();
+        
         // Look up member by name only (name matching is case-insensitive)
-        member = await Member.findByNameForCheckIn(trimmedName);
+        member = await Member.findByNameForCheckIn(normalizedName);
         if (!member) {
           return res.status(404).json({
             success: false,
-            message: 'Member not found. Please verify your name is correct.'
+            message: 'Member not found. Please verify your name matches exactly as it appears in the system.'
           });
         }
         

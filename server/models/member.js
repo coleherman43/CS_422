@@ -116,15 +116,19 @@ class Member {
 
   // Find member by name (case-insensitive, for QR code check-ins)
   // Name matching only - UO ID is optional and not required for lookup
+  // Normalizes multiple spaces to single space for better matching
   static async findByNameForCheckIn(name, uo_id = null) {
+    // Normalize the input name: trim and collapse multiple spaces
+    const normalizedInput = name.replace(/\s+/g, ' ').trim();
+    
     const sql = `
       SELECT m.*, r.name as role_name, w.name as workplace_name
       FROM members m
       LEFT JOIN roles r ON m.role_id = r.id
       LEFT JOIN workplaces w ON m.workplace_id = w.id
-      WHERE LOWER(TRIM(m.name)) = LOWER(TRIM($1))
+      WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) = LOWER($1)
     `;
-    const params = [name];
+    const params = [normalizedInput];
     
     const result = await query(sql, params);
     return result.rows[0];

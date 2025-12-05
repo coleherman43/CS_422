@@ -16,14 +16,16 @@ function Login({ setIsLoggedIn }) {
       return;
     }
 
-    // Store email for verification
-    window.localStorage.setItem("emailForSignIn", email);
+    // Normalize email (lowercase, trim) before storing for verification
+    // This ensures it matches what Firebase expects
+    const normalizedEmail = email.toLowerCase().trim();
+    window.localStorage.setItem("emailForSignIn", normalizedEmail);
 
     try {
       const response = await fetch(`${API_URL}/auth/request-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: normalizedEmail }),
       });
 
       if (!response.ok) {

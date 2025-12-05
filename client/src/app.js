@@ -132,7 +132,9 @@ function Verify({ setIsLoggedIn }) {
 
   useEffect(() => {
     // Try to get email from localStorage or URL params
-    const email = window.localStorage.getItem("emailForSignIn") || searchParams.get("email");
+    // Normalize it to ensure it matches what Firebase expects
+    const rawEmail = window.localStorage.getItem("emailForSignIn") || searchParams.get("email");
+    const email = rawEmail ? rawEmail.toLowerCase().trim() : null;
     verifyEmailLink(email);
   }, [searchParams, verifyEmailLink]);
 
@@ -142,9 +144,11 @@ function Verify({ setIsLoggedIn }) {
       setStatus("Please enter a valid email address.");
       return;
     }
+    // Normalize email before verifying (must match what Firebase expects)
+    const normalizedEmail = emailInput.toLowerCase().trim();
     setNeedsEmail(false);
     setStatus("Verifying...");
-    verifyEmailLink(emailInput);
+    verifyEmailLink(normalizedEmail);
   };
 
   if (needsEmail) {

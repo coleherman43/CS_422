@@ -15,10 +15,13 @@ class AuthController {
         return res.status(400).json({ success: false, message: "Email is required" });
       }
 
+      // Normalize email to lowercase for consistent lookup
+      const normalizedEmail = email.toLowerCase().trim();
+
       // ---- Find account ----
       let member;
       try {
-        member = await Member.findByEmail(email);
+        member = await Member.findByEmail(normalizedEmail);
       } catch (dbError) {
         if (dbError.message?.includes("DATABASE_URL") || dbError.code === "ECONNREFUSED") {
           return res.status(503).json({
@@ -29,17 +32,20 @@ class AuthController {
         throw dbError;
       }
 
-      console.log(`🔐 Login attempt: ${email}`);
+      console.log(`🔐 Login attempt: ${email} (normalized: ${normalizedEmail})`);
 
       // ❗ Don't reveal existence of email — security best practice
       if (!member) {
+        console.log(`❌ No member found for email: ${normalizedEmail}`);
+        // Debug: Try to see if there are any similar emails in the database
+        // (This is just for debugging - remove in production if needed)
         return res.json({
           success: true,
           message: "If an account exists with this email, a login link has been sent."
         });
       }
 
-      console.log(`✅ Member found: ${member.name} (${member.email})`);
+      console.log(`✅ Member found: ${member.name} (${member.email}, ID: ${member.id})`);
 
       // Ensure we use port 3000 for React app (not server port)
       const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -55,7 +61,7 @@ class AuthController {
         }
 
         console.log("⚡ Firebase magic link generating...");
-        magicLink = await admin.auth().generateSignInWithEmailLink(email, {
+        magicLink = await admin.auth().generateSignInWithEmailLink(normalizedEmail, {
           url: `${baseUrlFinal}/verify`,
           handleCodeInApp: false
         });
@@ -68,15 +74,15 @@ class AuthController {
         const expiresAt = Date.now() + 15 * 60 * 1000;
 
         if (!global.devTokens) global.devTokens = new Map();
-        global.devTokens.set(devToken, { email, memberId: member.id, expiresAt });
+        global.devTokens.set(devToken, { email: normalizedEmail, memberId: member.id, expiresAt });
 
-        magicLink = `${baseUrlFinal}/verify?token=${devToken}&email=${encodeURIComponent(email)}`;
+        magicLink = `${baseUrlFinal}/verify?token=${devToken}&email=${encodeURIComponent(normalizedEmail)}`;
         console.log(`🔗 Dev magic link: ${magicLink}`);
       }
 
       // Send email (if configured)
       try {
-        await EmailService.sendMagicLinkEmail(email, member.name, magicLink);
+        await EmailService.sendMagicLinkEmail(normalizedEmail, member.name, magicLink);
       } catch {
         console.log("📩 Email not configured — link shown above.");
       }

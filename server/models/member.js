@@ -17,6 +17,9 @@ class Member {
       graduation_year
     } = memberData;
 
+    // Normalize email to lowercase for consistent storage
+    const normalizedEmail = email ? email.toLowerCase().trim() : email;
+
     // Convert empty strings to null for integer fields
     const normalizedWorkplaceId = (workplace_id === '' || workplace_id === null || workplace_id === undefined) 
       ? null 
@@ -43,7 +46,7 @@ class Member {
 
     const values = [
       name, 
-      email, 
+      normalizedEmail, 
       uo_id, 
       normalizedWorkplaceId, 
       normalizedRoleId, 
@@ -72,14 +75,14 @@ class Member {
     return result.rows[0];
   }
 
-  // Find member by email
+  // Find member by email (case-insensitive)
   static async findByEmail(email) {
     const sql = `
       SELECT m.*, r.name as role_name, w.name as workplace_name
       FROM members m
       LEFT JOIN roles r ON m.role_id = r.id
       LEFT JOIN workplaces w ON m.workplace_id = w.id
-      WHERE m.email = $1
+      WHERE LOWER(m.email) = LOWER($1)
     `;
     const result = await query(sql, [email]);
     return result.rows[0];

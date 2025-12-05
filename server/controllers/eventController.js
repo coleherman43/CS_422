@@ -191,6 +191,7 @@ class EventController {
       }
 
       let member;
+      let validatedQrToken = null; // Store the validated/trimmed token for later use
       
       // If member_id is provided, use it directly
       if (member_id) {
@@ -203,18 +204,25 @@ class EventController {
         }
         // For member_id check-ins, QR code token is optional
         if (qr_code_token) {
-          if (typeof qr_code_token !== 'string' || qr_code_token.trim().length === 0) {
+          if (typeof qr_code_token !== 'string') {
             return res.status(400).json({
               success: false,
               message: 'Invalid QR code token format'
             });
           }
-          const validation = QRCodeService.validateToken(qr_code_token, parsedEventId);
-          if (!validation.valid) {
-            return res.status(400).json({
-              success: false,
-              message: validation.error || 'Invalid QR code token'
-            });
+          const trimmedToken = qr_code_token.trim();
+          if (trimmedToken.length === 0) {
+            // Empty token is fine for member_id check-ins (it's optional)
+            // Just skip validation
+          } else {
+            const validation = QRCodeService.validateToken(trimmedToken, parsedEventId);
+            if (!validation.valid) {
+              return res.status(400).json({
+                success: false,
+                message: validation.error || 'Invalid QR code token'
+              });
+            }
+            validatedQrToken = trimmedToken; // Store validated token
           }
         }
       } 
@@ -246,29 +254,40 @@ class EventController {
         }
         
         // For QR code check-ins, token is required
-        if (!qr_code_token) {
+        if (!qr_code_token || (typeof qr_code_token === 'string' && qr_code_token.trim().length === 0)) {
           return res.status(400).json({
             success: false,
-            message: 'QR code token is required for check-in'
+            message: 'QR code token is required for check-in. Please scan the QR code again.'
           });
         }
         
         // Validate QR code token format
-        if (typeof qr_code_token !== 'string' || qr_code_token.trim().length === 0) {
+        if (typeof qr_code_token !== 'string') {
           return res.status(400).json({
             success: false,
-            message: 'Invalid QR code token format'
+            message: 'Invalid QR code token format. Please scan the QR code again.'
           });
         }
         
-        // Validate QR code token
-        const validation = QRCodeService.validateToken(qr_code_token, parsedEventId);
+        // Trim the token
+        const trimmedToken = qr_code_token.trim();
+        if (trimmedToken.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'QR code token is required for check-in. Please scan the QR code again.'
+          });
+        }
+        
+        // Validate QR code token (use trimmed token)
+        const validation = QRCodeService.validateToken(trimmedToken, parsedEventId);
         if (!validation.valid) {
           return res.status(400).json({
             success: false,
-            message: validation.error || 'Invalid or expired QR code token'
+            message: validation.error || 'Invalid or expired QR code token. Please scan the QR code again.'
           });
         }
+        
+        validatedQrToken = trimmedToken; // Store validated token for later use
         
         // Normalize name: collapse multiple spaces to single space
         // This helps match names that might have extra spaces in the database
@@ -311,16 +330,27 @@ class EventController {
       }
 
       // Ensure qr_code_token is within database limits (VARCHAR(500))
-      let safeQrToken = qr_code_token || null;
-      if (safeQrToken && typeof safeQrToken === 'string') {
-        if (safeQrToken.length > 500) {
-          safeQrToken = safeQrToken.substring(0, 500);
-          console.warn(`QR token truncated from ${qr_code_token.length} to 500 characters`);
+      // Use validatedQrToken if available (already validated and trimmed), otherwise use qr_code_token
+      let safeQrToken = null;
+      if (validatedQrToken) {
+        // Use the already validated and trimmed token
+        if (validatedQrToken.length > 500) {
+          safeQrToken = validatedQrToken.substring(0, 500);
+          console.warn(`QR token truncated from ${validatedQrToken.length} to 500 characters`);
+        } else {
+          safeQrToken = validatedQrToken;
         }
-        // Trim the token
-        safeQrToken = safeQrToken.trim();
-      } else {
-        safeQrToken = null;
+      } else if (qr_code_token && typeof qr_code_token === 'string') {
+        // Fallback: trim and use if not already validated (for member_id check-ins with optional token)
+        const trimmed = qr_code_token.trim();
+        if (trimmed.length > 0) {
+          if (trimmed.length > 500) {
+            safeQrToken = trimmed.substring(0, 500);
+            console.warn(`QR token truncated from ${trimmed.length} to 500 characters`);
+          } else {
+            safeQrToken = trimmed;
+          }
+        }
       }
       
       // Record the check-in

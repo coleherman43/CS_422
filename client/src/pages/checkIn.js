@@ -88,14 +88,19 @@ function CheckIn() {
     }
 
     try {
+      // Truncate to database limits to prevent errors
+      // Database: name VARCHAR(100), uo_id VARCHAR(20)
+      const trimmedName = name.trim().substring(0, 100);
+      const trimmedUoId = uoId ? uoId.trim().substring(0, 20) : null;
+      
       const requestBody = {
-        name: name.trim(),
+        name: trimmedName,
         qr_code_token: qrCodeToken
       };
       
       // Only include uo_id if it's provided
-      if (uoId && uoId.trim()) {
-        requestBody.uo_id = uoId.trim();
+      if (trimmedUoId && trimmedUoId.length > 0) {
+        requestBody.uo_id = trimmedUoId;
       }
 
       const response = await fetch(`${API_URL}/events/${eventId}/checkin`, {

@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "../config";
 import "../styles/CheckIn.css";
 
 function CheckIn() {
   const { eventId: paramEventId } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [uoId, setUoId] = useState("");
   const [qrCodeToken, setQrCodeToken] = useState("");
-  const [eventId, setEventId] = useState(paramEventId || "");
+  const [eventId, setEventId] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,15 +25,11 @@ function CheckIn() {
       setQrCodeToken(tokenFromUrl);
       setMessage("QR code detected! Please enter your details to check in.");
     }
-    if (eventIdFromUrl) {
-      setEventId(eventIdFromUrl);
-    } else if (paramEventId) {
-      setEventId(paramEventId);
-    }
-
-    // Fetch event name if eventId is available
-    if (eventIdFromUrl || paramEventId) {
-      fetchEventName(eventIdFromUrl || paramEventId);
+    
+    const finalEventId = eventIdFromUrl || paramEventId || "";
+    if (finalEventId) {
+      setEventId(finalEventId);
+      fetchEventName(finalEventId);
     }
   }, [searchParams, paramEventId]);
 
@@ -42,119 +37,77 @@ function CheckIn() {
     if (!id) return;
     try {
       const response = await fetch(`${API_URL}/events/${id}`);
-      if (!response.ok) {
-        console.error("Failed to fetch event:", response.status);
-        return;
-      }
-      const data = await response.json();
-      if (data.success && data.data.event) {
-        setEventName(data.data.event.title || data.data.event.name);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data?.event) {
+          setEventName(data.data.event.title || data.data.event.name || "");
+        }
       }
     } catch (err) {
+      // Silently fail - event name is not critical
       console.error("Error fetching event:", err);
-      // Don't show error to user for event name fetch failure
     }
   };
 
   const handleCheckIn = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
     setError("");
+    setMessage("");
 
-    // Validate QR token is present and not empty FIRST
-    if (!qrCodeToken || qrCodeToken.trim().length === 0) {
+    // Validate inputs
+    if (!qrCodeToken || !qrCodeToken.trim()) {
       setError("Missing QR code token. Please scan the QR code again.");
       setLoading(false);
       return;
     }
 
-    // Validate eventId is present
-    if (!eventId || eventId.trim().length === 0) {
+    if (!eventId || !eventId.trim()) {
       setError("Missing event information. Please scan the QR code again.");
       setLoading(false);
       return;
     }
 
-    if (!name || name.trim().length === 0) {
+    if (!name || !name.trim()) {
       setError("Name is required.");
       setLoading(false);
       return;
     }
 
     try {
-      // CRITICAL: Truncate to database limits FIRST (before any processing)
-      // Database: name VARCHAR(100), uo_id VARCHAR(20)
-      // We truncate to 100/20 FIRST, then trim, to ensure we NEVER exceed limits
-      let safeName = typeof name === 'string' ? name.substring(0, 100) : '';
-      let safeUoId = (uoId && typeof uoId === 'string') ? uoId.substring(0, 20) : null;
-      
-      // Now trim whitespace
-      safeName = safeName.trim();
-      safeUoId = safeUoId ? safeUoId.trim() : null;
-      
-      // Final validation - ensure name is not empty after processing
-      if (!safeName || safeName.length === 0) {
-        setError("Name is required.");
+      // Prepare safe values - truncate first, then trim
+      const safeName = name.substring(0, 100).trim();
+      const safeUoId = uoId ? uoId.substring(0, 20).trim() : null;
+      const safeToken = qrCodeToken.trim();
+
+      if (!safeName) {
+        setError("Name cannot be empty.");
         setLoading(false);
         return;
       }
-      
-      // Double-check lengths (should never exceed, but safety check)
-      if (safeName.length > 100) {
-        safeName = safeName.substring(0, 100);
-      }
-      if (safeUoId && safeUoId.length > 20) {
-        safeUoId = safeUoId.substring(0, 20);
-      }
-      
-      // Log what we're sending for debugging
-      console.log('Sending check-in request:', {
-        nameLength: safeName.length,
-        uoIdLength: safeUoId ? safeUoId.length : 0,
-        eventId: eventId,
-        hasToken: !!qrCodeToken
-      });
-      
+
+      // Build request body
       const requestBody = {
         name: safeName,
-        qr_code_token: qrCodeToken.trim() // Ensure token is trimmed
+        qr_code_token: safeToken
       };
-      
-      // Only include uo_id if it's provided and not empty
+
       if (safeUoId && safeUoId.length > 0) {
         requestBody.uo_id = safeUoId;
       }
 
+      // Make API call
       const response = await fetch(`${API_URL}/events/${eventId}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
-      // Check if response is ok before trying to parse JSON
-      let data;
-      try {
-        data = await response.json();
-      } catch (jsonError) {
-        console.error("JSON parse error:", jsonError);
-        setError(`Server error: ${response.status} ${response.statusText}. Please try again.`);
-        setMessage("");
-        setLoading(false);
-        return;
-      }
+      const data = await response.json();
 
       if (!response.ok) {
-        // Handle HTTP error status codes
-        const errorMessage = data.message || data.error || `Error: ${response.status} ${response.statusText}`;
-        console.error('Check-in API error:', {
-          status: response.status,
-          statusText: response.statusText,
-          message: errorMessage,
-          data: data
-        });
-        setError(errorMessage);
-        setMessage("");
+        const errorMsg = data.message || data.error || `Error ${response.status}: ${response.statusText}`;
+        setError(errorMsg);
         setLoading(false);
         return;
       }
@@ -163,24 +116,18 @@ function CheckIn() {
         setMessage(data.message || "Check-in successful! Your attendance has been recorded.");
         setError("");
         setCheckInSuccess(true);
-        // Clear form after successful check-in
         setName("");
         setUoId("");
-        setQrCodeToken(""); // Clear token after successful use
-        // Don't redirect since user may not be logged in
-        // Just show success message
       } else {
         setError(data.message || "Check-in failed. Please try again.");
-        setMessage("");
       }
     } catch (err) {
       console.error("Check-in error:", err);
-      if (err.message.includes("Failed to fetch") || err.message.includes("NetworkError")) {
+      if (err.message?.includes("Failed to fetch") || err.message?.includes("NetworkError")) {
         setError("Network error: Could not connect to server. Please check your connection and try again.");
       } else {
         setError(err.message || "An error occurred during check-in. Please try again.");
       }
-      setMessage("");
     } finally {
       setLoading(false);
     }
@@ -208,7 +155,6 @@ function CheckIn() {
               id="name"
               value={name}
               onChange={(e) => {
-                // Enforce maxLength in real-time
                 const value = e.target.value;
                 if (value.length <= 100) {
                   setName(value);
@@ -232,7 +178,6 @@ function CheckIn() {
               id="uoId"
               value={uoId}
               onChange={(e) => {
-                // Enforce maxLength in real-time
                 const value = e.target.value;
                 if (value.length <= 20) {
                   setUoId(value);
@@ -265,4 +210,3 @@ function CheckIn() {
 }
 
 export default CheckIn;
-

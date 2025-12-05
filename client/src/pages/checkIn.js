@@ -81,8 +81,16 @@ function CheckIn() {
       return;
     }
 
-    if (!qrCodeToken && !eventId) {
-      setError("Missing QR code information. Please scan the QR code again.");
+    // Validate QR token is present and not empty
+    if (!qrCodeToken || qrCodeToken.trim().length === 0) {
+      setError("Missing QR code token. Please scan the QR code again.");
+      setLoading(false);
+      return;
+    }
+
+    // Validate eventId is present
+    if (!eventId || eventId.trim().length === 0) {
+      setError("Missing event information. Please scan the QR code again.");
       setLoading(false);
       return;
     }
@@ -103,7 +111,7 @@ function CheckIn() {
       
       const requestBody = {
         name: safeName,
-        qr_code_token: qrCodeToken
+        qr_code_token: qrCodeToken.trim() // Ensure token is trimmed
       };
       
       // Only include uo_id if it's provided and not empty
@@ -131,7 +139,14 @@ function CheckIn() {
 
       if (!response.ok) {
         // Handle HTTP error status codes
-        setError(data.message || `Error: ${response.status} ${response.statusText}`);
+        const errorMessage = data.message || data.error || `Error: ${response.status} ${response.statusText}`;
+        console.error('Check-in API error:', {
+          status: response.status,
+          statusText: response.statusText,
+          message: errorMessage,
+          data: data
+        });
+        setError(errorMessage);
         setMessage("");
         setLoading(false);
         return;

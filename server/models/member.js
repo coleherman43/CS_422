@@ -115,9 +115,9 @@ class Member {
   }
 
   // Find member by name (case-insensitive, for QR code check-ins)
-  // Optionally verify UO ID if provided
+  // Name matching only - UO ID is optional and not required for lookup
   static async findByNameForCheckIn(name, uo_id = null) {
-    let sql = `
+    const sql = `
       SELECT m.*, r.name as role_name, w.name as workplace_name
       FROM members m
       LEFT JOIN roles r ON m.role_id = r.id
@@ -125,12 +125,6 @@ class Member {
       WHERE LOWER(TRIM(m.name)) = LOWER(TRIM($1))
     `;
     const params = [name];
-    
-    // If UO ID is provided, also verify it matches
-    if (uo_id) {
-      sql += ` AND m.uo_id = $2`;
-      params.push(uo_id);
-    }
     
     const result = await query(sql, params);
     return result.rows[0];

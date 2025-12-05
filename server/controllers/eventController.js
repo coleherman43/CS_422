@@ -248,16 +248,20 @@ class EventController {
           });
         }
         
-        // Look up member by name (and optionally verify UO ID if provided)
-        member = await Member.findByNameForCheckIn(trimmedName, trimmedUoId);
+        // Look up member by name only (name matching is case-insensitive)
+        member = await Member.findByNameForCheckIn(trimmedName);
         if (!member) {
-          const errorMsg = uo_id 
-            ? 'Member not found. Please verify your name and 95# are correct.'
-            : 'Member not found. Please verify your name is correct.';
           return res.status(404).json({
             success: false,
-            message: errorMsg
+            message: 'Member not found. Please verify your name is correct.'
           });
+        }
+        
+        // Optionally verify UO ID if provided (but don't fail if it doesn't match - name is sufficient)
+        if (trimmedUoId && member.uo_id && member.uo_id !== trimmedUoId) {
+          // UO ID provided but doesn't match - still allow check-in since name matches
+          // This is just a warning, not an error
+          console.log(`Warning: UO ID mismatch for member ${member.id}. Provided: ${trimmedUoId}, Expected: ${member.uo_id}`);
         }
       } else {
         return res.status(400).json({

@@ -205,14 +205,26 @@ class EventController {
       } 
       // Otherwise, look up by name (for QR code check-ins)
       else if (name) {
-        // Validate input lengths
-        if (name.length > 100) {
+        // Trim the name and UO ID first
+        const trimmedName = name.trim();
+        const trimmedUoId = uo_id ? uo_id.trim() : null;
+        
+        // Validate name is not empty after trimming
+        if (!trimmedName || trimmedName.length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Name is required'
+          });
+        }
+        
+        // Validate input lengths after trimming
+        if (trimmedName.length > 100) {
           return res.status(400).json({
             success: false,
             message: 'Name is too long (maximum 100 characters)'
           });
         }
-        if (uo_id && uo_id.length > 20) {
+        if (trimmedUoId && trimmedUoId.length > 20) {
           return res.status(400).json({
             success: false,
             message: '95# is too long (maximum 20 characters)'
@@ -237,7 +249,7 @@ class EventController {
         }
         
         // Look up member by name (and optionally verify UO ID if provided)
-        member = await Member.findByNameForCheckIn(name.trim(), uo_id ? uo_id.trim() : null);
+        member = await Member.findByNameForCheckIn(trimmedName, trimmedUoId);
         if (!member) {
           const errorMsg = uo_id 
             ? 'Member not found. Please verify your name and 95# are correct.'

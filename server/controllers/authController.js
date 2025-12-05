@@ -32,17 +32,20 @@ class AuthController {
         throw dbError;
       }
 
-      console.log(`🔐 Login attempt: ${email}`);
+      console.log(`🔐 Login attempt: ${email} (normalized: ${normalizedEmail})`);
 
       // ❗ Don't reveal existence of email — security best practice
       if (!member) {
+        console.log(`❌ No member found for email: ${normalizedEmail}`);
+        // Debug: Try to see if there are any similar emails in the database
+        // (This is just for debugging - remove in production if needed)
         return res.json({
           success: true,
           message: "If an account exists with this email, a login link has been sent."
         });
       }
 
-      console.log(`✅ Member found: ${member.name} (${member.email})`);
+      console.log(`✅ Member found: ${member.name} (${member.email}, ID: ${member.id})`);
 
       // Ensure we use port 3000 for React app (not server port)
       const baseUrl = process.env.FRONTEND_URL || "http://localhost:3000";

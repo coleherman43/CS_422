@@ -7,9 +7,17 @@ class MemberController {
     try {
       const memberData = req.body;
 
+      // Normalize email (trim and lowercase)
+      if (memberData.email) {
+        memberData.email = memberData.email.toLowerCase().trim();
+      }
+
+      console.log(`📝 Registering member: ${memberData.email} (${memberData.name})`);
+
       // Check if member already exists
       const existingMember = await Member.findByEmail(memberData.email);
       if (existingMember) {
+        console.log(`⚠️  Member already exists: ${memberData.email}`);
         return res.status(409).json({
           success: false,
           message: 'Member with this email already exists'
@@ -48,6 +56,7 @@ class MemberController {
 
       // Create new member
       const newMember = await Member.create(memberData);
+      console.log(`✅ Member created successfully: ${newMember.email} (ID: ${newMember.id})`);
 
       // Send confirmation email (non-blocking - don't fail registration if email fails)
       try {

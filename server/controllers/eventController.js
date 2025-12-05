@@ -172,8 +172,17 @@ class EventController {
       const { id: eventId } = req.params;
       const { member_id, name, uo_id, qr_code_token } = req.body;
 
+      // Validate eventId is a valid number
+      const parsedEventId = parseInt(eventId, 10);
+      if (isNaN(parsedEventId) || parsedEventId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid event ID'
+        });
+      }
+
       // Validate event exists
-      const event = await Event.findById(eventId);
+      const event = await Event.findById(parsedEventId);
       if (!event) {
         return res.status(404).json({
           success: false,
@@ -194,7 +203,13 @@ class EventController {
         }
         // For member_id check-ins, QR code token is optional
         if (qr_code_token) {
-          const validation = QRCodeService.validateToken(qr_code_token, parseInt(eventId));
+          if (typeof qr_code_token !== 'string' || qr_code_token.trim().length === 0) {
+            return res.status(400).json({
+              success: false,
+              message: 'Invalid QR code token format'
+            });
+          }
+          const validation = QRCodeService.validateToken(qr_code_token, parsedEventId);
           if (!validation.valid) {
             return res.status(400).json({
               success: false,
@@ -238,8 +253,16 @@ class EventController {
           });
         }
         
+        // Validate QR code token format
+        if (typeof qr_code_token !== 'string' || qr_code_token.trim().length === 0) {
+          return res.status(400).json({
+            success: false,
+            message: 'Invalid QR code token format'
+          });
+        }
+        
         // Validate QR code token
-        const validation = QRCodeService.validateToken(qr_code_token, parseInt(eventId));
+        const validation = QRCodeService.validateToken(qr_code_token, parsedEventId);
         if (!validation.valid) {
           return res.status(400).json({
             success: false,
@@ -279,7 +302,7 @@ class EventController {
       }
 
       // Check if already checked in
-      const alreadyCheckedIn = await Attendance.isCheckedIn(member.id, eventId);
+      const alreadyCheckedIn = await Attendance.isCheckedIn(member.id, parsedEventId);
       if (alreadyCheckedIn) {
         return res.status(409).json({
           success: false,
@@ -288,14 +311,20 @@ class EventController {
       }
 
       // Ensure qr_code_token is within database limits (VARCHAR(500))
-      let safeQrToken = qr_code_token;
-      if (safeQrToken && safeQrToken.length > 500) {
-        safeQrToken = safeQrToken.substring(0, 500);
-        console.warn(`QR token truncated from ${qr_code_token.length} to 500 characters`);
+      let safeQrToken = qr_code_token || null;
+      if (safeQrToken && typeof safeQrToken === 'string') {
+        if (safeQrToken.length > 500) {
+          safeQrToken = safeQrToken.substring(0, 500);
+          console.warn(`QR token truncated from ${qr_code_token.length} to 500 characters`);
+        }
+        // Trim the token
+        safeQrToken = safeQrToken.trim();
+      } else {
+        safeQrToken = null;
       }
       
       // Record the check-in
-      const checkIn = await Attendance.recordCheckIn(member.id, eventId, safeQrToken);
+      const checkIn = await Attendance.recordCheckIn(member.id, parsedEventId, safeQrToken);
 
       // Send check-in confirmation email (non-blocking - don't fail check-in if email fails)
       try {
@@ -317,21 +346,57 @@ class EventController {
         message: error.message,
         code: error.code,
         detail: error.detail,
-        constraint: error.constraint
+        constraint: error.constraint,
+        eventId: req.params.id,
+        hasMemberId: !!req.body.member_id,
+        hasName: !!req.body.name,
+        hasQrToken: !!req.body.qr_code_token
       });
       
       // Check if it's a database value too long error
-      if (error.message && error.message.includes('value too long')) {
+      if (error.message && (error.message.includes('value too long') || error.code === '22001')) {
         return res.status(400).json({
           success: false,
           message: 'Input value is too long. Please ensure your name is 100 characters or less and your 95# is 20 characters or less.'
         });
       }
       
+      // Check for database constraint violations
+      if (error.code === '23505') { // Unique violation
+        return res.status(409).json({
+          success: false,
+          message: 'You have already checked in to this event'
+        });
+      }
+      
+      if (error.code === '23503') { // Foreign key violation
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid member or event reference'
+        });
+      }
+      
+      // Check for database connection errors
+      if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+        return res.status(503).json({
+          success: false,
+          message: 'Database connection error. Please try again later.'
+        });
+      }
+      
       res.status(500).json({
         success: false,
-        message: error.message || 'Internal server error',
-        error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: process.env.NODE_ENV === 'production' 
+          ? 'An error occurred during check-in. Please try again.' 
+          : (error.message || 'Internal server error'),
+        ...(process.env.NODE_ENV === 'development' && { 
+          error: error.stack,
+          details: {
+            code: error.code,
+            detail: error.detail,
+            constraint: error.constraint
+          }
+        })
       });
     }
   }

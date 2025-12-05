@@ -88,19 +88,27 @@ function CheckIn() {
     }
 
     try {
-      // Truncate to database limits to prevent errors
+      // Truncate to database limits FIRST, then trim to prevent errors
       // Database: name VARCHAR(100), uo_id VARCHAR(20)
-      const trimmedName = name.trim().substring(0, 100);
-      const trimmedUoId = uoId ? uoId.trim().substring(0, 20) : null;
+      // Truncate before trimming to ensure we never exceed limits
+      const safeName = (name || '').substring(0, 100).trim();
+      const safeUoId = (uoId || '').substring(0, 20).trim() || null;
+      
+      // Final validation
+      if (!safeName || safeName.length === 0) {
+        setError("Name is required.");
+        setLoading(false);
+        return;
+      }
       
       const requestBody = {
-        name: trimmedName,
+        name: safeName,
         qr_code_token: qrCodeToken
       };
       
-      // Only include uo_id if it's provided
-      if (trimmedUoId && trimmedUoId.length > 0) {
-        requestBody.uo_id = trimmedUoId;
+      // Only include uo_id if it's provided and not empty
+      if (safeUoId && safeUoId.length > 0) {
+        requestBody.uo_id = safeUoId;
       }
 
       const response = await fetch(`${API_URL}/events/${eventId}/checkin`, {

@@ -143,36 +143,67 @@ class Member {
       }
       
       // Log for debugging
-      console.log('findByNameForCheckIn - normalized input length:', normalizedInput.length);
+      console.log('findByNameForCheckIn - searching for:', {
+        input: name,
+        normalized: normalizedInput,
+        normalizedLength: normalizedInput.length
+      });
       
-      // Simple query - normalize database names in the query
-      // Try exact match first, then try with normalized spaces
-      const sql = `
+      // Try multiple matching strategies for better name matching
+      // Strategy 1: Exact match with normalized spaces (most common case)
+      let sql = `
         SELECT m.*, r.name as role_name, w.name as workplace_name
         FROM members m
         LEFT JOIN roles r ON m.role_id = r.id
         LEFT JOIN workplaces w ON m.workplace_id = w.id
-        WHERE LOWER(TRIM(m.name)) = LOWER($1)
+        WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) = LOWER($1)
       `;
-      const params = [normalizedInput];
-      
+      let params = [normalizedInput];
       let result = await query(sql, params);
       
-      // If no exact match, try with normalized spaces (if REGEXP_REPLACE is available)
+      // Strategy 2: If no match, try simple TRIM match (fallback)
       if (!result.rows[0]) {
-        try {
-          const sqlNormalized = `
-            SELECT m.*, r.name as role_name, w.name as workplace_name
-            FROM members m
-            LEFT JOIN roles r ON m.role_id = r.id
-            LEFT JOIN workplaces w ON m.workplace_id = w.id
-            WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) = LOWER($1)
-          `;
-          result = await query(sqlNormalized, params);
-        } catch (err) {
-          // If REGEXP_REPLACE fails, just return null (exact match didn't work)
-          console.error('Error in normalized name query:', err);
+        sql = `
+          SELECT m.*, r.name as role_name, w.name as workplace_name
+          FROM members m
+          LEFT JOIN roles r ON m.role_id = r.id
+          LEFT JOIN workplaces w ON m.workplace_id = w.id
+          WHERE LOWER(TRIM(m.name)) = LOWER($1)
+        `;
+        result = await query(sql, params);
+      }
+      
+      // Strategy 3: If still no match, try ILIKE for partial matching (more flexible)
+      if (!result.rows[0]) {
+        sql = `
+          SELECT m.*, r.name as role_name, w.name as workplace_name
+          FROM members m
+          LEFT JOIN roles r ON m.role_id = r.id
+          LEFT JOIN workplaces w ON m.workplace_id = w.id
+          WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) ILIKE LOWER($1)
+        `;
+        params = [`%${normalizedInput}%`];
+        result = await query(sql, params);
+        // If we get multiple results, prefer exact length match
+        if (result.rows.length > 1) {
+          const exactMatch = result.rows.find(row => 
+            row.name && 
+            row.name.replace(/\s+/g, ' ').trim().toLowerCase() === normalizedInput.toLowerCase()
+          );
+          if (exactMatch) {
+            return exactMatch;
+          }
         }
+      }
+      
+      if (result.rows[0]) {
+        console.log('findByNameForCheckIn - found member:', {
+          id: result.rows[0].id,
+          name: result.rows[0].name,
+          matchedInput: normalizedInput
+        });
+      } else {
+        console.log('findByNameForCheckIn - no member found for:', normalizedInput);
       }
       
       return result.rows[0] || null;

@@ -97,16 +97,45 @@ function CheckIn() {
       }
 
       // Make API call
+      console.log('Making check-in request:', {
+        url: `${API_URL}/events/${eventId}/checkin`,
+        name: safeName,
+        nameLength: safeName.length,
+        hasUoId: !!safeUoId,
+        eventId: eventId,
+        tokenLength: safeToken.length
+      });
+
       const response = await fetch(`${API_URL}/events/${eventId}/checkin`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(requestBody),
       });
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        console.error('Failed to parse response as JSON:', jsonError);
+        setError(`Server error: ${response.status} ${response.statusText}`);
+        setLoading(false);
+        return;
+      }
+
+      console.log('Check-in response:', {
+        status: response.status,
+        ok: response.ok,
+        data: data
+      });
 
       if (!response.ok) {
-        const errorMsg = data.message || data.error || `Error ${response.status}: ${response.statusText}`;
+        const errorMsg = data.message || data.error || data.details || `Error ${response.status}: ${response.statusText}`;
+        console.error('Check-in failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage: errorMsg,
+          fullResponse: data
+        });
         setError(errorMsg);
         setLoading(false);
         return;

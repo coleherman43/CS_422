@@ -172,18 +172,29 @@ class EventController {
       const { id: eventId } = req.params;
       const { member_id, name, uo_id, qr_code_token } = req.body;
 
+      // Log incoming request
+      console.log('Check-in request:', {
+        eventId: eventId,
+        hasName: !!name,
+        name: name ? name.substring(0, 50) : null,
+        hasQrToken: !!qr_code_token,
+        hasMemberId: !!member_id
+      });
+
       // Validate eventId is a valid number
       const parsedEventId = parseInt(eventId, 10);
       if (isNaN(parsedEventId) || parsedEventId <= 0) {
+        console.error('Invalid event ID:', eventId);
         return res.status(400).json({
           success: false,
-          message: 'Invalid event ID'
+          message: `Invalid event ID: ${eventId}. Please scan the QR code again.`
         });
       }
 
       // Validate event exists
       const event = await Event.findById(parsedEventId);
       if (!event) {
+        console.error('Event not found:', parsedEventId);
         return res.status(404).json({
           success: false,
           message: 'Event not found'
@@ -263,15 +274,17 @@ class EventController {
         });
         
         // For QR code check-ins, token is required
-        if (!qr_code_token || (typeof qr_code_token === 'string' && qr_code_token.trim().length === 0)) {
+        if (!qr_code_token) {
+          console.error('QR token missing for name-based check-in');
           return res.status(400).json({
             success: false,
-            message: 'QR code token is required for check-in. Please scan the QR code again.'
+            message: 'QR code token is required. Please scan the QR code again.'
           });
         }
         
         // Validate QR code token format
         if (typeof qr_code_token !== 'string') {
+          console.error('Invalid QR token type:', typeof qr_code_token);
           return res.status(400).json({
             success: false,
             message: 'Invalid QR code token format. Please scan the QR code again.'
@@ -281,20 +294,24 @@ class EventController {
         // Trim the token
         const trimmedToken = qr_code_token.trim();
         if (trimmedToken.length === 0) {
+          console.error('QR token is empty after trimming');
           return res.status(400).json({
             success: false,
-            message: 'QR code token is required for check-in. Please scan the QR code again.'
+            message: 'QR code token is required. Please scan the QR code again.'
           });
         }
         
         // Validate QR code token (use trimmed token)
+        console.log('Validating QR token for event:', parsedEventId);
         const validation = QRCodeService.validateToken(trimmedToken, parsedEventId);
         if (!validation.valid) {
+          console.error('QR token validation failed:', validation.error);
           return res.status(400).json({
             success: false,
             message: validation.error || 'Invalid or expired QR code token. Please scan the QR code again.'
           });
         }
+        console.log('QR token validated successfully');
         
         validatedQrToken = trimmedToken; // Store validated token for later use
         
@@ -310,18 +327,30 @@ class EventController {
           normalizedName = normalizedName.substring(0, 100);
         }
         
-        // Log normalized name length for debugging
-        console.log('Normalized name length:', normalizedName.length);
+        // Log for debugging
+        console.log('Looking up member by name:', {
+          originalName: name,
+          processedName: processedName,
+          normalizedName: normalizedName,
+          normalizedLength: normalizedName.length
+        });
         
-        // Look up member by name only (name matching is case-insensitive)
-        // The findByNameForCheckIn method will also ensure the name is within limits
+        // Look up member by name only (name matching is case-insensitive and flexible)
+        // The findByNameForCheckIn method handles normalization and multiple matching strategies
         member = await Member.findByNameForCheckIn(normalizedName);
         if (!member) {
+          console.log('Member not found for name:', normalizedName);
           return res.status(404).json({
             success: false,
-            message: 'Member not found. Please verify your name matches exactly as it appears in the system.'
+            message: 'Member not found. Please verify your name matches the name in the system. The name matching is case-insensitive and handles spacing variations.'
           });
         }
+        
+        console.log('Member found:', {
+          id: member.id,
+          name: member.name,
+          email: member.email
+        });
         
         // Optionally verify UO ID if provided (but don't fail if it doesn't match - name is sufficient)
         if (processedUoId && member.uo_id && member.uo_id !== processedUoId) {

@@ -118,20 +118,61 @@ class Member {
   // Name matching only - UO ID is optional and not required for lookup
   // Normalizes multiple spaces to single space for better matching
   static async findByNameForCheckIn(name, uo_id = null) {
-    // Normalize the input name: trim and collapse multiple spaces
-    const normalizedInput = name.replace(/\s+/g, ' ').trim();
-    
-    const sql = `
-      SELECT m.*, r.name as role_name, w.name as workplace_name
-      FROM members m
-      LEFT JOIN roles r ON m.role_id = r.id
-      LEFT JOIN workplaces w ON m.workplace_id = w.id
-      WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) = LOWER($1)
-    `;
-    const params = [normalizedInput];
-    
-    const result = await query(sql, params);
-    return result.rows[0];
+    try {
+      // Validate input
+      if (!name || typeof name !== 'string') {
+        return null;
+      }
+      
+      // Normalize the input name: trim and collapse multiple spaces, ensure it's within DB limits
+      let normalizedInput = name.replace(/\s+/g, ' ').trim();
+      
+      // Ensure it doesn't exceed database limit (VARCHAR(100))
+      if (normalizedInput.length > 100) {
+        normalizedInput = normalizedInput.substring(0, 100);
+      }
+      
+      // Return null if name is empty after normalization
+      if (normalizedInput.length === 0) {
+        return null;
+      }
+      
+      // Simple query - normalize database names in the query
+      // Try exact match first, then try with normalized spaces
+      const sql = `
+        SELECT m.*, r.name as role_name, w.name as workplace_name
+        FROM members m
+        LEFT JOIN roles r ON m.role_id = r.id
+        LEFT JOIN workplaces w ON m.workplace_id = w.id
+        WHERE LOWER(TRIM(m.name)) = LOWER($1)
+      `;
+      const params = [normalizedInput];
+      
+      let result = await query(sql, params);
+      
+      // If no exact match, try with normalized spaces (if REGEXP_REPLACE is available)
+      if (!result.rows[0]) {
+        try {
+          const sqlNormalized = `
+            SELECT m.*, r.name as role_name, w.name as workplace_name
+            FROM members m
+            LEFT JOIN roles r ON m.role_id = r.id
+            LEFT JOIN workplaces w ON m.workplace_id = w.id
+            WHERE LOWER(REGEXP_REPLACE(TRIM(m.name), '\\s+', ' ', 'g')) = LOWER($1)
+          `;
+          result = await query(sqlNormalized, params);
+        } catch (err) {
+          // If REGEXP_REPLACE fails, just return null (exact match didn't work)
+          console.error('Error in normalized name query:', err);
+        }
+      }
+      
+      return result.rows[0] || null;
+    } catch (error) {
+      console.error('Error in findByNameForCheckIn:', error);
+      // Return null on error rather than throwing, so the controller can handle it
+      return null;
+    }
   }
 
   // Find all members with optional filters

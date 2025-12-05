@@ -228,12 +228,13 @@ class EventController {
       } 
       // Otherwise, look up by name (for QR code check-ins)
       else if (name) {
-        // First, truncate to database limits BEFORE any processing
+        // CRITICAL: Truncate to database limits FIRST (before any processing)
         // Database: name VARCHAR(100), uo_id VARCHAR(20)
+        // We truncate FIRST, then trim, to ensure we NEVER exceed limits
         let processedName = typeof name === 'string' ? name.substring(0, 100) : '';
         let processedUoId = (uo_id && typeof uo_id === 'string') ? uo_id.substring(0, 20) : null;
         
-        // Now trim and normalize
+        // Now trim whitespace
         processedName = processedName.trim();
         processedUoId = processedUoId ? processedUoId.trim() : null;
         
@@ -245,13 +246,21 @@ class EventController {
           });
         }
         
-        // Final truncation check (shouldn't be needed, but safety check)
+        // CRITICAL: Final truncation check - ensure we never exceed limits
+        // This is a safety net in case trimming somehow increased length (shouldn't happen, but safety first)
         if (processedName.length > 100) {
           processedName = processedName.substring(0, 100);
         }
         if (processedUoId && processedUoId.length > 20) {
           processedUoId = processedUoId.substring(0, 20);
         }
+        
+        // Log for debugging
+        console.log('Processing check-in:', {
+          nameLength: processedName.length,
+          uoIdLength: processedUoId ? processedUoId.length : 0,
+          eventId: parsedEventId
+        });
         
         // For QR code check-ins, token is required
         if (!qr_code_token || (typeof qr_code_token === 'string' && qr_code_token.trim().length === 0)) {
@@ -291,14 +300,21 @@ class EventController {
         
         // Normalize name: collapse multiple spaces to single space
         // This helps match names that might have extra spaces in the database
+        // IMPORTANT: Normalization can only make the string shorter or same length, never longer
+        // But we still truncate to be absolutely safe
         let normalizedName = processedName.replace(/\s+/g, ' ').trim();
         
-        // Final safety check - ensure normalized name is still within limits
+        // CRITICAL: Final safety check - ensure normalized name is still within limits
+        // This should never be needed since normalization only reduces length, but safety first
         if (normalizedName.length > 100) {
           normalizedName = normalizedName.substring(0, 100);
         }
         
+        // Log normalized name length for debugging
+        console.log('Normalized name length:', normalizedName.length);
+        
         // Look up member by name only (name matching is case-insensitive)
+        // The findByNameForCheckIn method will also ensure the name is within limits
         member = await Member.findByNameForCheckIn(normalizedName);
         if (!member) {
           return res.status(404).json({
@@ -384,7 +400,17 @@ class EventController {
       });
       
       // Check if it's a database value too long error
-      if (error.message && (error.message.includes('value too long') || error.code === '22001')) {
+      if (error.message && (error.message.includes('value too long') || error.code === '22001' || error.code === '23514')) {
+        // Log the actual values that caused the error for debugging
+        console.error('Value too long error - actual values:', {
+          name: req.body.name,
+          nameLength: req.body.name ? req.body.name.length : 0,
+          uo_id: req.body.uo_id,
+          uoIdLength: req.body.uo_id ? req.body.uo_id.length : 0,
+          errorDetail: error.detail,
+          errorMessage: error.message
+        });
+        
         return res.status(400).json({
           success: false,
           message: 'Input value is too long. Please ensure your name is 100 characters or less and your 95# is 20 characters or less.'

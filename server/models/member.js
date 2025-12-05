@@ -124,10 +124,15 @@ class Member {
         return null;
       }
       
-      // Normalize the input name: trim and collapse multiple spaces, ensure it's within DB limits
-      let normalizedInput = name.replace(/\s+/g, ' ').trim();
+      // CRITICAL: Truncate FIRST to ensure we never exceed database limits
+      // Database: name VARCHAR(100)
+      let normalizedInput = name.substring(0, 100);
       
-      // Ensure it doesn't exceed database limit (VARCHAR(100))
+      // Now normalize: trim and collapse multiple spaces
+      normalizedInput = normalizedInput.replace(/\s+/g, ' ').trim();
+      
+      // CRITICAL: Final truncation check (shouldn't be needed, but safety first)
+      // Normalization can only reduce length, but we truncate again to be absolutely safe
       if (normalizedInput.length > 100) {
         normalizedInput = normalizedInput.substring(0, 100);
       }
@@ -136,6 +141,9 @@ class Member {
       if (normalizedInput.length === 0) {
         return null;
       }
+      
+      // Log for debugging
+      console.log('findByNameForCheckIn - normalized input length:', normalizedInput.length);
       
       // Simple query - normalize database names in the query
       // Try exact match first, then try with normalized spaces

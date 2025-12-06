@@ -1,0 +1,255 @@
+/* Container */
+.send-email-container {
+  padding: 20px;
+  font-family: 'Arial', sans-serif;
+  background: #f4f4f4;
+  min-height: calc(100vh - 40px);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .send-email-container {
+    padding: 15px;
+  }
+}
+
+/* Title */
+.send-email-title {
+  font-size: 2rem;
+  color: #B8241C;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 768px) {
+  .send-email-title {
+    font-size: 1.5rem;
+    margin-bottom: 15px;
+  }
+}
+
+/* Content Layout */
+.send-email-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1024px) {
+  .send-email-content {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+/* Filters Section */
+.send-email-filters {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.send-email-filters h2 {
+  color: #B8241C;
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+.send-email-subtitle {
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.send-email-filters-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 15px;
+}
+
+.send-email-filters-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.member-count-preview {
+  padding: 8px 15px;
+  background-color: #e3f2fd;
+  border-radius: 6px;
+  color: #1976d2;
+  font-size: 0.9rem;
+}
+
+.member-count-preview strong {
+  font-weight: 600;
+}
+
+/* Form Section */
+.send-email-form-section {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.send-email-form-section h2 {
+  color: #B8241C;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-size: 1.5rem;
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #B8241C;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 150px;
+  font-family: inherit;
+}
+
+.char-count {
+  margin-top: 5px;
+  font-size: 0.85rem;
+  color: #666;
+  text-align: right;
+}
+
+/* Buttons */
+.send-email-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 25px;
+  flex-wrap: wrap;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary {
+  background-color: #B8241C;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #e7615a;
+}
+
+.btn-primary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #5a6268;
+}
+
+.btn-secondary:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Alerts */
+.send-email-alert {
+  padding: 15px 20px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.send-email-error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.send-email-success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .send-email-filters,
+  .send-email-form-section {
+    padding: 20px;
+  }
+
+  .send-email-filters h2,
+  .send-email-form-section h2 {
+    font-size: 1.3rem;
+  }
+
+  .send-email-filters-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .send-email-actions {
+    flex-direction: column;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    width: 100%;
+  }
+
+  .member-count-preview {
+    width: 100%;
+    text-align: center;
+  }
+}
+

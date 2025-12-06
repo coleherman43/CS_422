@@ -9,6 +9,7 @@ import StaggeredMenu from "../components/StaggeredMenu";
 import Member from "./member";
 import Events from "./events";
 import Reports from "./reports";
+import SendEmail from "./sendEmail";
 import UOSWLogo from "../Images/UOSW_Logo.png";
 
 function Dashboard({ setIsLoggedIn }) {
@@ -25,6 +26,7 @@ function Dashboard({ setIsLoggedIn }) {
     { label: 'Members', ariaLabel: 'View members', link: '/dashboard/members' },
     { label: 'Events', ariaLabel: 'View events', link: '/dashboard/events' },
     { label: 'Reports', ariaLabel: 'View reports', link: '/dashboard/reports' },
+    { label: 'Send Email', ariaLabel: 'Send email to members', link: '/dashboard/send-email' },
     { label: 'Log Out', ariaLabel: 'Log out of account', link: '#', onClick: handleLogout }
   ];
 
@@ -123,6 +125,9 @@ function Dashboard({ setIsLoggedIn }) {
                   <button className="btn" onClick={() => navigate("/dashboard/events")}>
                     Create Event
                   </button>
+                  <button className="btn" onClick={() => navigate("/dashboard/send-email")}>
+                    Send Email
+                  </button>
                   <button className="btn" onClick={() => navigate("/dashboard/reports")}>
                     View Reports
                   </button>
@@ -144,6 +149,7 @@ function Dashboard({ setIsLoggedIn }) {
       <Route path="checkin/:eventId" element={<CheckIn />} />
       <Route path="checkin" element={<CheckIn />} />
       <Route path="reports" element={<Reports />} />
+      <Route path="send-email" element={<SendEmail />} />
 
 
       </Routes>

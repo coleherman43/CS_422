@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/Member.css";
 import { API_URL } from "../config";
 
@@ -167,6 +168,7 @@ const DUMMY_WORKPLACES = [
 ];
 
 function Member() {
+  const navigate = useNavigate();
   const [members, setMembers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [workplaces, setWorkplaces] = useState([]);
@@ -492,16 +494,25 @@ function Member() {
             </div>
           )}
         </div>
-        <button 
-          className="member-actions button"
-          onClick={() => {
-            resetForm();
-            setShowAddModal(true);
-            setEditingMember(null);
-          }}
-        >
-          + Add Member
-        </button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <button 
+            className="member-actions button"
+            onClick={() => navigate("/dashboard/send-email")}
+            style={{ backgroundColor: "#2196F3" }}
+          >
+            📧 Send Email
+          </button>
+          <button 
+            className="member-actions button"
+            onClick={() => {
+              resetForm();
+              setShowAddModal(true);
+              setEditingMember(null);
+            }}
+          >
+            + Add Member
+          </button>
+        </div>
       </div>
 
       {error && <div style={{ color: "red", marginBottom: "15px", padding: "10px", backgroundColor: "#ffe6e6", borderRadius: "5px" }}>{error}</div>}

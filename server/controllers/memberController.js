@@ -282,6 +282,88 @@ class MemberController {
       });
     }
   }
+
+  // Send email to filtered members
+  static async sendEmailToMembers(req, res) {
+    try {
+      const { subject, message } = req.body;
+
+      // Validate required fields
+      if (!subject || !message) {
+        return res.status(400).json({
+          success: false,
+          message: 'Subject and message are required'
+        });
+      }
+
+      // Get filters from query parameters (same as getMembers)
+      const filters = {
+        workplace_id: req.query.workplace_id,
+        dues_status: req.query.dues_status,
+        membership_status: req.query.membership_status,
+        search: req.query.search
+      };
+
+      // Remove undefined values
+      Object.keys(filters).forEach(key => {
+        if (filters[key] === undefined) {
+          delete filters[key];
+        }
+      });
+
+      // Get filtered members
+      const members = await Member.findAll(filters);
+
+      if (!members || members.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'No members found matching the specified filters'
+        });
+      }
+
+      // Filter out members without email addresses
+      const membersWithEmail = members.filter(m => m.email && m.email.trim().length > 0);
+
+      if (membersWithEmail.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No members with valid email addresses found'
+        });
+      }
+
+      console.log(`📧 Sending email to ${membersWithEmail.length} member(s) with filters:`, filters);
+      console.log(`📧 Email subject: "${subject}"`);
+      console.log(`📧 Email message length: ${message.length} characters`);
+
+      // Send email using EmailService.sendAnnouncement
+      const announcementData = {
+        subject: subject.trim(),
+        message: message.trim()
+      };
+
+      const emailResult = await EmailService.sendAnnouncement(announcementData, membersWithEmail);
+
+      res.json({
+        success: true,
+        message: `Email sent successfully to ${emailResult.recipientsCount} member(s)`,
+        data: {
+          recipients_count: emailResult.recipientsCount,
+          total_members_matched: members.length,
+          members_with_email: membersWithEmail.length,
+          filters_applied: filters,
+          email_mode: emailResult.mode,
+          message_id: emailResult.messageId
+        }
+      });
+    } catch (error) {
+      console.error('Send email to members error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
 }
 
 module.exports = MemberController;

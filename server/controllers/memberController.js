@@ -332,11 +332,13 @@ class MemberController {
       }
 
       console.log(`📧 Sending email to ${membersWithEmail.length} member(s) with filters:`, filters);
+      console.log(`📧 Email subject: "${subject}"`);
+      console.log(`📧 Email message length: ${message.length} characters`);
 
       // Send email using EmailService.sendAnnouncement
       const announcementData = {
-        subject: subject,
-        message: message
+        subject: subject.trim(),
+        message: message.trim()
       };
 
       const emailResult = await EmailService.sendAnnouncement(announcementData, membersWithEmail);

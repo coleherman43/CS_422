@@ -33,10 +33,23 @@ class EmailService {
       // Extract email from "Name <email>" format if needed
       const from = fromEmail.includes('<') ? fromEmail.match(/<(.+)>/)[1] : fromEmail;
 
+      // Handle multiple recipients - Resend accepts array or comma-separated string
+      let toArray;
+      if (typeof to === 'string' && to.includes(',')) {
+        // Split by comma and trim whitespace
+        toArray = to.split(',').map(email => email.trim()).filter(email => email);
+      } else {
+        // Single recipient
+        toArray = to.trim();
+      }
+
+      // Ensure subject is not empty
+      const emailSubject = subject && subject.trim() ? subject.trim() : 'Union Announcement';
+
       const { data, error } = await resend.emails.send({
         from: from,
-        to: to,
-        subject: subject,
+        to: toArray,
+        subject: emailSubject,
         text: text,
         html: html || text.replace(/\n/g, '<br>')
       });
@@ -61,11 +74,42 @@ class EmailService {
         // Extract email from "Name <email>" format if needed
         const from = fromEmail.includes('<') ? fromEmail.match(/<(.+)>/)[1] : fromEmail;
 
+        // Handle multiple recipients - split comma-separated emails and create array
+        let toArray, bccArray;
+        if (typeof to === 'string' && to.includes(',')) {
+          // Split by comma and trim whitespace
+          const emails = to.split(',').map(email => email.trim()).filter(email => email);
+          // For multiple recipients, use first email in TO and rest in BCC for privacy
+          // If only one email, just use TO
+          if (emails.length > 1) {
+            toArray = [{ email: emails[0] }];
+            bccArray = emails.slice(1).map(email => ({ email }));
+          } else {
+            toArray = [{ email: emails[0] }];
+            bccArray = [];
+          }
+        } else {
+          // Single recipient
+          toArray = [{ email: to.trim() }];
+          bccArray = [];
+        }
+
+        // Ensure subject is not empty
+        const emailSubject = subject && subject.trim() ? subject.trim() : 'Union Announcement';
+
+        // Build personalizations object
+        const personalization = {
+          to: toArray,
+          subject: emailSubject
+        };
+        
+        // Add BCC if there are multiple recipients
+        if (bccArray.length > 0) {
+          personalization.bcc = bccArray;
+        }
+
         const payload = JSON.stringify({
-          personalizations: [{
-            to: [{ email: to }],
-            subject: subject
-          }],
+          personalizations: [personalization],
           from: { email: from },
           content: [
             { type: 'text/plain', value: text },
@@ -92,8 +136,16 @@ class EmailService {
             if (res.statusCode >= 200 && res.statusCode < 300) {
               const messageId = res.headers['x-message-id'] || `sg_${Date.now()}`;
               console.log('📧 Email sent successfully via SendGrid:', messageId);
+              console.log('📧 SendGrid details - To:', toArray.length, 'recipients, Subject:', emailSubject);
               resolve({ success: true, messageId: messageId, mode: 'sendgrid' });
             } else {
+              console.error('❌ SendGrid API error:', {
+                statusCode: res.statusCode,
+                statusMessage: res.statusMessage,
+                response: data,
+                toCount: toArray.length,
+                subject: emailSubject
+              });
               reject(new Error(`SendGrid API error (${res.statusCode}): ${data}`));
             }
           });

@@ -1,7 +1,7 @@
 # Flock Manager - UOSW Membership Tracking System
 
 A full-stack application for managing UO Student Workers Union (UOSW) membership, events, and attendance.
-WEBSITE - https://frontend-production-cbc3.up.railway.app/login
+- WEBSITE - https://frontend-production-cbc3.up.railway.app/login
 
 ## Project Structure
 

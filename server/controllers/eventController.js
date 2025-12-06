@@ -398,14 +398,16 @@ class EventController {
         });
       }
 
-      // Ensure qr_code_token is within database limits (VARCHAR(500))
+      // Ensure qr_code_token is within database limits (VARCHAR(500) after migration)
       // Use validatedQrToken if available (already validated and trimmed), otherwise use qr_code_token
       let safeQrToken = null;
+      const QR_TOKEN_MAX_LENGTH = 500; // Database limit (updated from 100 to 500)
+      
       if (validatedQrToken) {
         // Use the already validated and trimmed token
-        if (validatedQrToken.length > 500) {
-          safeQrToken = validatedQrToken.substring(0, 500);
-          console.warn(`QR token truncated from ${validatedQrToken.length} to 500 characters`);
+        if (validatedQrToken.length > QR_TOKEN_MAX_LENGTH) {
+          safeQrToken = validatedQrToken.substring(0, QR_TOKEN_MAX_LENGTH);
+          console.warn(`QR token truncated from ${validatedQrToken.length} to ${QR_TOKEN_MAX_LENGTH} characters (database limit)`);
         } else {
           safeQrToken = validatedQrToken;
         }
@@ -413,9 +415,9 @@ class EventController {
         // Fallback: trim and use if not already validated (for member_id check-ins with optional token)
         const trimmed = qr_code_token.trim();
         if (trimmed.length > 0) {
-          if (trimmed.length > 500) {
-            safeQrToken = trimmed.substring(0, 500);
-            console.warn(`QR token truncated from ${trimmed.length} to 500 characters`);
+          if (trimmed.length > QR_TOKEN_MAX_LENGTH) {
+            safeQrToken = trimmed.substring(0, QR_TOKEN_MAX_LENGTH);
+            console.warn(`QR token truncated from ${trimmed.length} to ${QR_TOKEN_MAX_LENGTH} characters (database limit)`);
           } else {
             safeQrToken = trimmed;
           }

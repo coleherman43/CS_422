@@ -83,7 +83,7 @@ This document describes the database schema for the Flock Manager system.
 | member_id | INTEGER | FOREIGN KEY, NOT NULL | Reference to members table |
 | event_id | INTEGER | FOREIGN KEY, NOT NULL | Reference to events table |
 | checked_in_at | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Check-in timestamp |
-| qr_code_token | VARCHAR(100) | | QR code token for validation |
+| qr_code_token | VARCHAR(500) | | QR code token for validation (schema says 500, but actual DB may have 100 - needs migration) |
 
 **Constraints**: 
 - UNIQUE(member_id, event_id) - Prevents duplicate check-ins

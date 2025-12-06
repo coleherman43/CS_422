@@ -3,12 +3,19 @@ const { query } = require('../config/db');
 class Attendance {
   // Record check-in
   static async recordCheckIn(memberId, eventId, qrToken = null) {
+    // Safety check: ensure QR token doesn't exceed database limit (VARCHAR(500))
+    let safeQrToken = qrToken;
+    if (safeQrToken && typeof safeQrToken === 'string' && safeQrToken.length > 500) {
+      console.warn(`QR token truncated from ${safeQrToken.length} to 500 characters (database limit)`);
+      safeQrToken = safeQrToken.substring(0, 500);
+    }
+    
     const sql = `
       INSERT INTO attendance (member_id, event_id, qr_code_token)
       VALUES ($1, $2, $3)
       RETURNING *
     `;
-    const values = [memberId, eventId, qrToken];
+    const values = [memberId, eventId, safeQrToken];
     const result = await query(sql, values);
     return result.rows[0];
   }

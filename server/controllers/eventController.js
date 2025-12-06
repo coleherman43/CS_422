@@ -346,10 +346,34 @@ class EventController {
           });
         }
         
+        // Validate member data from database (safety check in case of data corruption)
+        if (member.name && member.name.length > 100) {
+          console.error('WARNING: Member name in database exceeds 100 characters:', {
+            memberId: member.id,
+            nameLength: member.name.length,
+            name: member.name
+          });
+          // Truncate for safety (shouldn't happen, but handle gracefully)
+          member.name = member.name.substring(0, 100);
+        }
+        
+        if (member.uo_id && member.uo_id.length > 20) {
+          console.error('WARNING: Member UO ID in database exceeds 20 characters:', {
+            memberId: member.id,
+            uoIdLength: member.uo_id.length,
+            uo_id: member.uo_id
+          });
+          // Truncate for safety (shouldn't happen, but handle gracefully)
+          member.uo_id = member.uo_id.substring(0, 20);
+        }
+        
         console.log('Member found:', {
           id: member.id,
           name: member.name,
-          email: member.email
+          nameLength: member.name ? member.name.length : 0,
+          email: member.email,
+          uo_id: member.uo_id,
+          uoIdLength: member.uo_id ? member.uo_id.length : 0
         });
         
         // Optionally verify UO ID if provided (but don't fail if it doesn't match - name is sufficient)
@@ -374,14 +398,16 @@ class EventController {
         });
       }
 
-      // Ensure qr_code_token is within database limits (VARCHAR(500))
+      // Ensure qr_code_token is within database limits (VARCHAR(500) after migration)
       // Use validatedQrToken if available (already validated and trimmed), otherwise use qr_code_token
       let safeQrToken = null;
+      const QR_TOKEN_MAX_LENGTH = 500; // Database limit (updated from 100 to 500)
+      
       if (validatedQrToken) {
         // Use the already validated and trimmed token
-        if (validatedQrToken.length > 500) {
-          safeQrToken = validatedQrToken.substring(0, 500);
-          console.warn(`QR token truncated from ${validatedQrToken.length} to 500 characters`);
+        if (validatedQrToken.length > QR_TOKEN_MAX_LENGTH) {
+          safeQrToken = validatedQrToken.substring(0, QR_TOKEN_MAX_LENGTH);
+          console.warn(`QR token truncated from ${validatedQrToken.length} to ${QR_TOKEN_MAX_LENGTH} characters (database limit)`);
         } else {
           safeQrToken = validatedQrToken;
         }
@@ -389,15 +415,32 @@ class EventController {
         // Fallback: trim and use if not already validated (for member_id check-ins with optional token)
         const trimmed = qr_code_token.trim();
         if (trimmed.length > 0) {
-          if (trimmed.length > 500) {
-            safeQrToken = trimmed.substring(0, 500);
-            console.warn(`QR token truncated from ${trimmed.length} to 500 characters`);
+          if (trimmed.length > QR_TOKEN_MAX_LENGTH) {
+            safeQrToken = trimmed.substring(0, QR_TOKEN_MAX_LENGTH);
+            console.warn(`QR token truncated from ${trimmed.length} to ${QR_TOKEN_MAX_LENGTH} characters (database limit)`);
           } else {
             safeQrToken = trimmed;
           }
         }
       }
       
+      // Safety check: ensure QR token doesn't accidentally contain name or other data
+      if (safeQrToken && member && member.name && safeQrToken.includes(member.name)) {
+        console.warn('WARNING: QR token appears to contain member name, this may indicate a bug');
+      }
+      
+      // Log before database insert
+      console.log('About to record check-in:', {
+        memberId: member.id,
+        memberName: member.name,
+        memberNameLength: member.name ? member.name.length : 0,
+        memberUoId: member.uo_id,
+        memberUoIdLength: member.uo_id ? member.uo_id.length : 0,
+        eventId: parsedEventId,
+        qrTokenLength: safeQrToken ? safeQrToken.length : 0,
+        qrTokenPreview: safeQrToken ? safeQrToken.substring(0, 50) + '...' : null
+      });
+
       // Record the check-in
       const checkIn = await Attendance.recordCheckIn(member.id, parsedEventId, safeQrToken);
 
@@ -432,17 +475,53 @@ class EventController {
       if (error.message && (error.message.includes('value too long') || error.code === '22001' || error.code === '23514')) {
         // Log the actual values that caused the error for debugging
         console.error('Value too long error - actual values:', {
-          name: req.body.name,
-          nameLength: req.body.name ? req.body.name.length : 0,
-          uo_id: req.body.uo_id,
-          uoIdLength: req.body.uo_id ? req.body.uo_id.length : 0,
+          requestBody: {
+            name: req.body.name,
+            nameLength: req.body.name ? req.body.name.length : 0,
+            uo_id: req.body.uo_id,
+            uoIdLength: req.body.uo_id ? req.body.uo_id.length : 0,
+            qr_code_token: req.body.qr_code_token ? req.body.qr_code_token.substring(0, 50) + '...' : null,
+            qrTokenLength: req.body.qr_code_token ? req.body.qr_code_token.length : 0
+          },
+          memberData: member ? {
+            id: member.id,
+            name: member.name,
+            nameLength: member.name ? member.name.length : 0,
+            uo_id: member.uo_id,
+            uoIdLength: member.uo_id ? member.uo_id.length : 0
+          } : null,
+          errorCode: error.code,
           errorDetail: error.detail,
-          errorMessage: error.message
+          errorMessage: error.message,
+          errorConstraint: error.constraint,
+          errorTable: error.table,
+          errorColumn: error.column
         });
+        
+        // Provide more specific error message based on what field is too long
+        let specificMessage = 'Input value is too long. ';
+        if (error.column === 'name' || (error.detail && error.detail.includes('name'))) {
+          specificMessage += 'Please ensure your name is 100 characters or less.';
+        } else if (error.column === 'uo_id' || (error.detail && error.detail.includes('uo_id'))) {
+          specificMessage += 'Please ensure your 95# is 20 characters or less.';
+        } else if (error.column === 'qr_code_token' || (error.detail && error.detail.includes('qr_code_token'))) {
+          specificMessage += 'QR code token is too long. Please scan the QR code again.';
+        } else {
+          specificMessage += 'Please ensure your name is 100 characters or less and your 95# is 20 characters or less.';
+        }
         
         return res.status(400).json({
           success: false,
-          message: 'Input value is too long. Please ensure your name is 100 characters or less and your 95# is 20 characters or less.'
+          message: specificMessage,
+          ...(process.env.NODE_ENV === 'development' && {
+            errorDetails: {
+              code: error.code,
+              detail: error.detail,
+              constraint: error.constraint,
+              table: error.table,
+              column: error.column
+            }
+          })
         });
       }
       
